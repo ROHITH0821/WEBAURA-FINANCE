@@ -5,7 +5,6 @@ export const dynamic = 'force-dynamic'
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import Image from 'next/image'
-import { Shield, ArrowRight, Mail, Key } from 'lucide-react'
 import { createClient } from '@/lib/supabase'
 import { sendResendOTP, verifyResendOTP } from '@/lib/auth-actions'
 
@@ -116,7 +115,9 @@ export default function LoginPage() {
 
         <div className="bg-white border border-slate-200 p-6 sm:p-10 rounded-2xl shadow-xl shadow-slate-100">
           <div className="flex items-center gap-3 mb-10 bg-[#f7f7dc] border border-slate-200 rounded-xl p-5">
-            <Shield className="w-5 h-5 text-slate-900" />
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-5 h-5 text-slate-900">
+              <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
+            </svg>
             <p className="text-[10px] font-black uppercase tracking-widest text-slate-900">Secure Environment Access</p>
           </div>
 
@@ -125,7 +126,12 @@ export default function LoginPage() {
               <div className="space-y-3">
                 <label className="text-[10px] font-black uppercase tracking-[0.4em] text-slate-400 ml-1">Corporate Email</label>
                 <div className="relative">
-                  <Mail className="absolute left-6 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+                  <div className="absolute left-6 top-1/2 -translate-y-1/2 text-slate-400">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-4 h-4">
+                      <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z" />
+                      <polyline points="22,6 12,13 2,6" />
+                    </svg>
+                  </div>
                   <input 
                     type="email" 
                     value={email}
@@ -144,7 +150,12 @@ export default function LoginPage() {
                 className="w-full bg-slate-900 text-white py-5 rounded-xl font-black flex items-center justify-center gap-3 hover:bg-slate-800 transition-all shadow-xl shadow-slate-200 uppercase tracking-[0.2em] text-[10px] active:scale-[0.98]"
               >
                 {loading ? 'Sending Code...' : 'Send Access Code'}
-                {!loading && <ArrowRight className="w-4 h-4" />}
+                {!loading && (
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-4 h-4">
+                    <line x1="5" y1="12" x2="19" y2="12" />
+                    <polyline points="12 5 19 12 12 19" />
+                  </svg>
+                )}
               </button>
             </form>
           ) : (
@@ -152,7 +163,11 @@ export default function LoginPage() {
               <div className="space-y-3">
                 <label className="text-[10px] font-black uppercase tracking-[0.4em] text-slate-400 ml-1">Verification Code</label>
                 <div className="relative">
-                  <Key className="absolute left-6 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+                  <div className="absolute left-6 top-1/2 -translate-y-1/2 text-slate-400">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-4 h-4">
+                      <path d="M21 2l-2 2m-7.61 7.61a5.5 5.5 0 1 1-7.778 7.778 5.5 5.5 0 0 1 7.777-7.777zm0 0L15.5 7.5m0 0l3 3L22 7l-3-3y-3z" />
+                    </svg>
+                  </div>
                   <input 
                     type="text" 
                     value={otp}
@@ -179,7 +194,12 @@ export default function LoginPage() {
                 className="w-full bg-slate-900 text-white py-5 rounded-xl font-black flex items-center justify-center gap-3 hover:bg-slate-800 transition-all shadow-xl shadow-slate-200 uppercase tracking-[0.2em] text-[10px] active:scale-[0.98]"
               >
                 {loading ? 'Verifying...' : 'Verify & Enter Portal'}
-                {!loading && <ArrowRight className="w-4 h-4" />}
+                {!loading && (
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-4 h-4">
+                    <line x1="5" y1="12" x2="19" y2="12" />
+                    <polyline points="12 5 19 12 12 19" />
+                  </svg>
+                )}
               </button>
             </form>
           )}
