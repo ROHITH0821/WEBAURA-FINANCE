@@ -1,14 +1,18 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { useRouter } from 'next/navigation'
+import { createClient } from '@/lib/supabase'
 
 export default function LoginPage() {
-  const router = useRouter()
   const [test, setTest] = useState(false)
   
   useEffect(() => {
-    setTest(true)
+    try {
+      const supabase = createClient()
+      if (supabase) setTest(true)
+    } catch (e) {
+      console.error(e)
+    }
   }, [])
 
   return (
@@ -16,7 +20,7 @@ export default function LoginPage() {
       <div className="w-full max-w-md text-center">
         <h1 className="text-2xl font-black text-slate-900 uppercase tracking-tight">Finance Portal</h1>
         <p className="text-slate-400 mt-2 font-bold uppercase tracking-widest text-[10px]">
-          {test ? 'Navigation Loaded' : 'Initializing...'}
+          {test ? 'Database Ready' : 'Initializing...'}
         </p>
       </div>
     </div>
