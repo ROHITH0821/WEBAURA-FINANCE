@@ -62,8 +62,8 @@ export default function LoginPage() {
       } else {
         setStep('otp')
       }
-    } catch (err) {
-      setError('Connection failed. Please try again.')
+    } catch (err: any) {
+      setError(`Connection failed: ${err.message || 'Server unreachable'}`)
     } finally {
       setLoading(false)
     }
