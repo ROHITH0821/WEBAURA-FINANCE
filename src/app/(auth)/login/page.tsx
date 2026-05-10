@@ -1,3 +1,5 @@
+'use client'
+
 import dynamic from 'next/dynamic'
 
 // Use dynamic import with ssr: false to bypass all server-side rendering during build
