@@ -1,8 +1,10 @@
 'use client'
 
 import { useState, useEffect } from 'react'
+import { useRouter } from 'next/navigation'
 
 export default function LoginPage() {
+  const router = useRouter()
   const [test, setTest] = useState(false)
   
   useEffect(() => {
@@ -14,7 +16,7 @@ export default function LoginPage() {
       <div className="w-full max-w-md text-center">
         <h1 className="text-2xl font-black text-slate-900 uppercase tracking-tight">Finance Portal</h1>
         <p className="text-slate-400 mt-2 font-bold uppercase tracking-widest text-[10px]">
-          {test ? 'Hooks Active' : 'Initializing...'}
+          {test ? 'Navigation Loaded' : 'Initializing...'}
         </p>
       </div>
     </div>
