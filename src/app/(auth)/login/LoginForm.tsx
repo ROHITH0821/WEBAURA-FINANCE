@@ -35,14 +35,19 @@ export default function LoginForm() {
       }
     }
 
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
-      if (session) {
-        router.push('/')
-        router.refresh()
+    try {
+      const { data } = supabase.auth.onAuthStateChange((event, session) => {
+        if (session) {
+          router.push('/')
+          router.refresh()
+        }
+      })
+      if (data?.subscription) {
+        return () => data.subscription.unsubscribe()
       }
-    })
-
-    return () => subscription.unsubscribe()
+    } catch (e) {
+      console.error('Auth state error:', e)
+    }
   }, [router])
 
   async function handleSendOtp(e: React.FormEvent) {
