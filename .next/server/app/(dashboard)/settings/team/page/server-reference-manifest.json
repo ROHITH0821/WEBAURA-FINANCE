@@ -1,0 +1,41 @@
+{
+  "node": {
+    "60a292e939ab3c02860c1b447f3fb04d9c5a7a022a": {
+      "workers": {
+        "app/(dashboard)/settings/team/page": {
+          "moduleId": 16430,
+          "async": false,
+          "exportedName": "addTeamMemberAction",
+          "filename": "src/lib/team-actions.ts"
+        }
+      },
+      "exportedName": "addTeamMemberAction",
+      "filename": "src/lib/team-actions.ts"
+    },
+    "600c28a4de8a5e887ef3ab942fe130f014b1cca1ca": {
+      "workers": {
+        "app/(dashboard)/settings/team/page": {
+          "moduleId": 16430,
+          "async": false,
+          "exportedName": "setTeamMemberActiveAction",
+          "filename": "src/lib/team-actions.ts"
+        }
+      },
+      "exportedName": "setTeamMemberActiveAction",
+      "filename": "src/lib/team-actions.ts"
+    },
+    "60de2d380226c95cf3e75469cc36b191077885403e": {
+      "workers": {
+        "app/(dashboard)/settings/team/page": {
+          "moduleId": 16430,
+          "async": false,
+          "exportedName": "setTeamMemberNameAction",
+          "filename": "src/lib/team-actions.ts"
+        }
+      },
+      "exportedName": "setTeamMemberNameAction",
+      "filename": "src/lib/team-actions.ts"
+    }
+  },
+  "edge": {}
+}

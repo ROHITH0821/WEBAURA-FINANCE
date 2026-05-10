@@ -1,0 +1,17 @@
+{
+  "node": {
+    "4043a439327361cb99cc5a0205faff267424ceecc8": {
+      "workers": {
+        "app/(dashboard)/projects/new/page": {
+          "moduleId": 72320,
+          "async": false,
+          "exportedName": "createProject",
+          "filename": "src/lib/actions.ts"
+        }
+      },
+      "exportedName": "createProject",
+      "filename": "src/lib/actions.ts"
+    }
+  },
+  "edge": {}
+}

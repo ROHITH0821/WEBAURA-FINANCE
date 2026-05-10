@@ -1,0 +1,368 @@
+@import "tailwindcss";
+
+@theme {
+  --color-brand-ivory: #f7f7dc;
+  --color-brand-moss: #1a2314;
+  --font-outfit: var(--font-outfit);
+  --font-jakarta: var(--font-jakarta);
+  --font-sans: var(--font-jakarta), var(--font-outfit), 'Inter', ui-sans-serif, system-ui;
+  /* Mobile hero headline (Syne); --font-syne from layout.jsx */
+  --font-mobile-hero: var(--font-syne), var(--font-outfit), ui-sans-serif, system-ui;
+  --color-primary: #000000;
+  --color-accent: #000000;
+  --color-success: #000000;
+  --color-warning: #000000;
+  
+  /* OVERRIDE TO STRICT MONOCHROME */
+  --color-slate-50: #ffffff;
+  --color-slate-100: color-mix(in srgb, #000 5%, #fff);
+  --color-slate-200: color-mix(in srgb, #000 10%, #fff);
+  --color-slate-300: color-mix(in srgb, #000 20%, #fff);
+  --color-slate-400: color-mix(in srgb, #000 40%, #fff);
+  --color-slate-500: color-mix(in srgb, #000 60%, #fff);
+  --color-slate-600: color-mix(in srgb, #000 70%, #fff);
+  --color-slate-700: color-mix(in srgb, #000 80%, #fff);
+  --color-slate-800: #000000;
+  --color-slate-900: #000000;
+  --color-slate-950: #000000;
+
+  --color-indigo-500: #000000;
+  --color-indigo-600: #000000;
+  --color-indigo-950: #000000;
+  --color-sky-400: #000000;
+  --color-sky-500: #000000;
+  --color-emerald-100: color-mix(in srgb, #000 10%, #fff);
+  --color-emerald-600: #000000;
+  --color-amber-500: #000000;
+  --color-purple-600: #000000;
+  --color-pink-600: #000000;
+  --color-zinc-900: #000000;
+  --color-zinc-800: #000000;
+
+  /* Extra-small screens (large phones) — used for optional row layouts */
+  --breakpoint-xs: 480px;
+  --breakpoint-sm: 640px;
+  --breakpoint-md: 768px;
+  --breakpoint-lg: 1024px;
+  --breakpoint-xl: 1280px;
+  --breakpoint-2xl: 1536px;
+}
+
+/* Referral UI: @theme remaps zinc/slate/sky — use [data-referral-ui] for guaranteed contrast */
+@layer components {
+  [data-referral-ui='true'] {
+    background-color: #ffffff !important;
+    color: #000000 !important;
+  }
+
+  [data-referral-ui='true'] .referral-heading {
+    color: #000000 !important;
+  }
+
+  [data-referral-ui='true'] .referral-body {
+    color: #111827 !important;
+  }
+
+  [data-referral-ui='true'] .referral-muted {
+    color: #4b5563 !important;
+  }
+
+  /*
+   * Staff admin (/admin, /admin): public site @theme is strict monochrome — restore
+   * standard Tailwind hues so the internal SaaS UI (slate surfaces, indigo actions, status colors) renders correctly.
+   */
+  [data-admin-saas='true'] {
+    color-scheme: light;
+
+    --color-slate-50: #f8fafc;
+    --color-slate-100: #f1f5f9;
+    --color-slate-200: #e2e8f0;
+    --color-slate-300: #cbd5e1;
+    --color-slate-400: #94a3b8;
+    --color-slate-500: #64748b;
+    --color-slate-600: #475569;
+    --color-slate-700: #334155;
+    --color-slate-800: #1e293b;
+    --color-slate-900: #0f172a;
+    --color-slate-950: #020617;
+
+    --color-indigo-50: #eef2ff;
+    --color-indigo-100: #e0e7ff;
+    --color-indigo-200: #c7d2fe;
+    --color-indigo-300: #a5b4fc;
+    --color-indigo-400: #818cf8;
+    --color-indigo-500: #6366f1;
+    --color-indigo-600: #4f46e5;
+    --color-indigo-700: #4338ca;
+    --color-indigo-800: #3730a3;
+    --color-indigo-900: #312e81;
+    --color-indigo-950: #1e1b4b;
+
+    --color-blue-50: #eff6ff;
+    --color-blue-100: #dbeafe;
+    --color-blue-200: #bfdbfe;
+    --color-blue-700: #1d4ed8;
+    --color-blue-800: #1e40af;
+
+    --color-emerald-50: #ecfdf5;
+    --color-emerald-100: #d1fae5;
+    --color-emerald-200: #a7f3d0;
+    --color-emerald-600: #059669;
+    --color-emerald-800: #065f46;
+    --color-emerald-900: #064e3b;
+
+    --color-violet-50: #f5f3ff;
+    --color-violet-100: #ede9fe;
+    --color-violet-200: #ddd6fe;
+    --color-violet-800: #5b21b6;
+    --color-violet-900: #4c1d95;
+
+    --color-rose-50: #fff1f2;
+    --color-rose-100: #ffe4e6;
+    --color-rose-200: #fecdd3;
+    --color-rose-700: #be123c;
+    --color-rose-800: #9f1239;
+    --color-rose-900: #881337;
+
+    --color-amber-50: #fffbeb;
+    --color-amber-200: #fde68a;
+    --color-amber-800: #92400e;
+    --color-amber-900: #78350f;
+    --color-amber-950: #451a03;
+  }
+}
+
+@layer base {
+  html {
+    -webkit-text-size-adjust: 100%;
+    scroll-padding-top: 5rem;
+  }
+
+  body {
+    @apply bg-white text-slate-900 antialiased selection:bg-indigo-500 selection:text-white;
+    min-height: 100dvh;
+    overflow-x: hidden;
+    text-rendering: optimizeLegibility;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    html {
+      scroll-behavior: auto;
+    }
+  }
+}
+
+/* Mobile home hero — CSS entry motion (visible without JS; no opacity-0 SSR flash) */
+@keyframes mobile-hero-rise {
+  from {
+    opacity: 0;
+    transform: translateY(1.25rem);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.mobile-hero-animate-h1 {
+  opacity: 0;
+  animation: mobile-hero-rise 0.6s cubic-bezier(0.22, 1, 0.36, 1) 0ms forwards;
+}
+
+.mobile-hero-animate-sub {
+  animation: mobile-hero-rise 0.55s cubic-bezier(0.22, 1, 0.36, 1) 150ms forwards;
+  opacity: 0;
+}
+
+@media (prefers-reduced-motion: reduce) {
+
+  .mobile-hero-animate-h1,
+  .mobile-hero-animate-sub {
+    animation: none !important;
+    opacity: 1 !important;
+    transform: none !important;
+  }
+}
+
+/* Story journey shells — strict monochrome + ivory */
+.story-shell-tone-white {
+  background-color: #ffffff;
+}
+
+.story-shell-tone-mist {
+  background-image: linear-gradient(180deg, #ffffff 0%, var(--color-brand-ivory) 42%, #ffffff 100%);
+}
+
+.story-shell-tone-paper {
+  background-image: linear-gradient(180deg, var(--color-brand-ivory) 0%, #ffffff 52%, var(--color-brand-ivory) 100%);
+}
+
+.story-shell-tone-zinc {
+  background-image: linear-gradient(180deg, var(--color-brand-ivory) 0%, #000000 45%, var(--color-brand-ivory) 100%);
+}
+
+.story-shell-ambient {
+  background:
+    radial-gradient(ellipse 85% 55% at 12% 0%, rgba(0, 0, 0, 0.07), transparent 58%),
+    radial-gradient(ellipse 75% 50% at 88% 15%, rgba(0, 0, 0, 0.065), transparent 55%),
+    radial-gradient(ellipse 60% 40% at 50% 100%, rgba(0, 0, 0, 0.04), transparent 60%);
+}
+
+.story-shell-vignette {
+  background: linear-gradient(
+    180deg,
+    rgba(0, 0, 0, 0.035) 0%,
+    transparent 38%,
+    transparent 62%,
+    rgba(0, 0, 0, 0.045) 100%
+  );
+}
+
+@layer utilities {
+  /* Promotes compositor layer for smoother transforms/opacity on main content */
+  .transform-gpu {
+    transform: translateZ(0);
+    backface-visibility: hidden;
+  }
+
+  .text-aura-huge {
+    @apply text-[clamp(4rem,14vw,12rem)] font-black tracking-[-0.05em] leading-[0.8] uppercase bg-clip-text text-transparent bg-gradient-to-br from-slate-900 via-indigo-950 to-slate-800;
+  }
+
+  .mesh-gradient {
+    background-image:
+      radial-gradient(at 0% 0%, rgba(0,0,0,0.4) 0, transparent 50%),
+      radial-gradient(at 50% 0%, rgba(0,0,0,0.8) 0, transparent 50%),
+      radial-gradient(at 100% 0%, rgba(0,0,0,0.6) 0, transparent 50%);
+    background-color: #000000;
+  }
+
+  .glass-card {
+    @apply bg-white/70 backdrop-blur-xl border border-white/40 shadow-[0_8px_32px_rgba(0,0,0,0.05)];
+  }
+
+  .glass-dark {
+    @apply bg-slate-900/90 backdrop-blur-2xl border border-white/10 shadow-2xl;
+  }
+
+  .accent-gradient {
+    @apply bg-gradient-to-r from-black via-black/80 to-black;
+  }
+
+  .animate-marquee {
+    animation: marquee 40s linear infinite;
+  }
+
+  /** Home hero — AI prompt typewriter caret */
+  .animate-hero-caret {
+    animation: hero-caret-blink 1.06s steps(1, end) infinite;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .animate-hero-caret {
+      animation: none;
+      opacity: 1;
+    }
+  }
+
+  .aura-glow {
+    background: radial-gradient(circle at center, rgba(0, 0, 0, 0.1) 0%, transparent 70%);
+  }
+
+  /*
+   * Inline pill nav only from xl (1280px). Below that: hamburger + logo + CTA
+   * so mid-width laptops/tablets never get overlapping links.
+   */
+  .nav-desktop {
+    display: none !important;
+  }
+  @media (min-width: 1024px) {
+    .nav-desktop {
+      display: flex !important;
+    }
+  }
+
+  .nav-mobile {
+    display: flex !important;
+  }
+  @media (min-width: 1024px) {
+    .nav-mobile {
+      display: none !important;
+    }
+  }
+
+  .scrollbar-hide {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+  .scrollbar-hide::-webkit-scrollbar {
+    display: none;
+  }
+
+  .pb-safe {
+    padding-bottom: max(0.75rem, env(safe-area-inset-bottom, 0px));
+  }
+}
+
+@keyframes marquee {
+  0% {
+    transform: translateX(0);
+  }
+
+  100% {
+    transform: translateX(-50%);
+  }
+}
+
+@keyframes hero-caret-blink {
+  0%,
+  45% {
+    opacity: 1;
+  }
+  50%,
+  100% {
+    opacity: 0;
+  }
+}
+
+@keyframes aura-pulse {
+
+  0%,
+  100% {
+    opacity: 0.2;
+    transform: scale(1) translate(-50%, -50%);
+  }
+
+  50% {
+    opacity: 0.5;
+    transform: scale(1.1) translate(-48%, -52%);
+  }
+}
+
+.animate-aura {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  animation: aura-pulse 12s ease-in-out infinite;
+}
+
+.perspective-1000 {
+  perspective: 1000px;
+}
+
+.grid-perspective {
+  background-image:
+    linear-gradient(to right, rgba(0, 0, 0, 0.1) 1px, transparent 1px),
+    linear-gradient(to bottom, rgba(0, 0, 0, 0.1) 1px, transparent 1px);
+  background-size: 50px 50px;
+  transform: rotateX(60deg) translateY(-20%);
+  mask-image: linear-gradient(to bottom, transparent, black, transparent);
+}
+
+/* md+: no peach ivory (#fbecca) — neutral mist; mobile keeps @theme default */
+@media (min-width: 768px) {
+  :root {
+    --color-brand-ivory: #fafafa;
+  }
+}

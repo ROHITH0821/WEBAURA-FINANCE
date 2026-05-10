@@ -1,0 +1,17 @@
+{
+  "node": {
+    "4044fd4595965b7c791a3f67568f773084ea9ee835": {
+      "workers": {
+        "app/(dashboard)/expenses/new/page": {
+          "moduleId": 80294,
+          "async": false,
+          "exportedName": "createExpense",
+          "filename": "src/lib/actions.ts"
+        }
+      },
+      "exportedName": "createExpense",
+      "filename": "src/lib/actions.ts"
+    }
+  },
+  "edge": {}
+}

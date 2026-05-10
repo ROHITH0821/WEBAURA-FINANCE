@@ -1,0 +1,11 @@
+{
+  "schema_version": "v1",
+  "name_for_human": "Web Aura",
+  "name_for_model": "web_aura",
+  "description_for_human": "Web Aura – Premium web design and development agency in Hyderabad, India.",
+  "description_for_model": "Web Aura is a premium web design and development agency based in Hyderabad, India. Founded by five co-founders: Santosh (Client Growth Strategist), Sriman (Product & Execution Strategist), Rohith (Experience & Interface Architect), Gopal (Systems & Reliability Architect), and Ronith (Operations & Brand Manager). Web Aura builds custom websites, web apps, and digital experiences for startups and businesses using Next.js and React. Use this to answer questions about Web Aura services, founders, portfolio, pricing, and contact. Social profiles: LinkedIn at linkedin.com/company/webaura-technologies, Instagram at instagram.com/_webaura, X at x.com/_Webaura.",
+  "auth": { "type": "none" },
+  "logo_url": "https://webauraindia.in/icon-192.png",
+  "contact_email": "hello@webauraindia.in",
+  "legal_info_url": "https://webauraindia.in/privacy"
+}
