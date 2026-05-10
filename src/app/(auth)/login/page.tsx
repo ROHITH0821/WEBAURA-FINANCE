@@ -4,7 +4,6 @@ import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import Image from 'next/image'
 import { createClient } from '@/lib/supabase'
-import { sendResendOTP, verifyResendOTP } from '@/lib/auth-actions'
 
 export default function LoginPage() {
   const router = useRouter()
@@ -17,7 +16,6 @@ export default function LoginPage() {
   useEffect(() => {
     const supabase = createClient()
     
-    // Handle Magic Link / Auth Hash
     if (typeof window !== 'undefined' && window.location.hash?.includes('access_token=')) {
       const hash = window.location.hash.replace(/^#/, '')
       const params = new URLSearchParams(hash)
@@ -37,7 +35,6 @@ export default function LoginPage() {
       }
     }
 
-    // Auth State Subscription
     try {
       const { data } = supabase.auth.onAuthStateChange((event, session) => {
         if (session) {
@@ -48,21 +45,28 @@ export default function LoginPage() {
       if (data?.subscription) {
         return () => data.subscription.unsubscribe()
       }
-    } catch (e) {
-      console.error('Auth state error:', e)
-    }
+    } catch (e) {}
   }, [router])
 
   async function handleSendOtp(e: React.FormEvent) {
     e.preventDefault()
     setLoading(true)
     setError('')
-    const res = await sendResendOTP(email)
-    if (res.error) {
-      setError(res.error)
-      setLoading(false)
-    } else {
-      setStep('otp')
+    
+    try {
+      const res = await fetch('/api/auth/otp', {
+        method: 'POST',
+        body: JSON.stringify({ email })
+      })
+      const data = await res.json()
+      if (data.error) {
+        setError(data.error)
+      } else {
+        setStep('otp')
+      }
+    } catch (err) {
+      setError('Connection failed. Please try again.')
+    } finally {
       setLoading(false)
     }
   }
@@ -71,15 +75,25 @@ export default function LoginPage() {
     e.preventDefault()
     setLoading(true)
     setError('')
-    const res = await verifyResendOTP(email, otp)
-    if (res.error) {
-      setError(res.error)
+
+    try {
+      const res = await fetch('/api/auth/verify', {
+        method: 'POST',
+        body: JSON.stringify({ email, otp })
+      })
+      const data = await res.json()
+      if (data.error) {
+        setError(data.error)
+      } else if (data.redirectUrl) {
+        window.location.href = data.redirectUrl
+      } else {
+        router.push('/')
+        router.refresh()
+      }
+    } catch (err) {
+      setError('Verification failed. Please try again.')
+    } finally {
       setLoading(false)
-    } else if (res.redirectUrl) {
-      window.location.href = res.redirectUrl
-    } else {
-      router.push('/')
-      router.refresh()
     }
   }
 
