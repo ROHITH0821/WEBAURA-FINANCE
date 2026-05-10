@@ -10,7 +10,13 @@ import crypto from 'crypto'
  * Step 1: Send OTP via Resend
  */
 export async function sendResendOTP(email: string) {
-  const host = (await headers()).get('host')
+  let host = 'finance.webauraindia.com'
+  try {
+    const h = await headers()
+    host = h.get('host') || host
+  } catch (e) {
+    // Build time or environment without headers
+  }
   const protocol = process.env.NODE_ENV === 'production' ? 'https' : 'http'
   const origin = `${protocol}://${host}`
 
@@ -185,7 +191,13 @@ export async function verifyResendOTP(email: string, otp: string) {
 
   // 3. Success - Generate Supabase Magic Link via Admin API
   // This allows us to use Resend for delivery but Supabase for the session
-  const host = (await headers()).get('host')
+  let host = 'finance.webauraindia.com'
+  try {
+    const h = await headers()
+    host = h.get('host') || host
+  } catch (e) {
+    // Build time
+  }
   const protocol = process.env.NODE_ENV === 'production' ? 'https' : 'http'
   const origin = `${protocol}://${host}`
 
