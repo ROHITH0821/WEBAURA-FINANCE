@@ -1,0 +1,71 @@
+import { createServerClient } from '@supabase/ssr'
+import { NextResponse, type NextRequest } from 'next/server'
+
+export async function middleware(request: NextRequest) {
+  let response = NextResponse.next({
+    request: {
+      headers: request.headers,
+    },
+  })
+  const cookieDomain =
+    process.env.NODE_ENV === 'production' && process.env.COOKIE_DOMAIN?.trim()
+      ? process.env.COOKIE_DOMAIN.trim()
+      : undefined
+
+  const supabase = createServerClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+    {
+      cookies: {
+        getAll() {
+          return request.cookies.getAll()
+        },
+        setAll(cookiesToSet) {
+          cookiesToSet.forEach(({ name, value, options }) => request.cookies.set(name, value))
+          response = NextResponse.next({
+            request,
+          })
+          cookiesToSet.forEach(({ name, value, options }) => {
+            response.cookies.set(name, value, {
+              ...options,
+              ...(cookieDomain ? { domain: cookieDomain } : {}),
+            })
+          })
+        },
+      },
+    }
+  )
+
+  const {
+    data: { user },
+  } = await supabase.auth.getUser()
+
+  const isDummyAuth = request.cookies.get('dummy_auth')?.value === 'true'
+
+  // Protect dashboard routes
+  if (request.nextUrl.pathname.startsWith('/') && 
+      !request.nextUrl.pathname.startsWith('/login') && 
+      !user && !isDummyAuth) {
+    return NextResponse.redirect(new URL('/login', request.url))
+  }
+
+  // Redirect if already logged in
+  if (request.nextUrl.pathname.startsWith('/login') && (user || isDummyAuth)) {
+    return NextResponse.redirect(new URL('/', request.url))
+  }
+
+  return response
+}
+
+export const config = {
+  matcher: [
+    /*
+     * Match all request paths except for the ones starting with:
+     * - _next/static (static files)
+     * - _next/image (image optimization files)
+     * - favicon.ico (favicon file)
+     * Feel free to modify this pattern to include more paths.
+     */
+    '/((?!_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)',
+  ],
+}
