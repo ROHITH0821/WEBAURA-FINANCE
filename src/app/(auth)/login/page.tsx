@@ -75,27 +75,41 @@ export default function LoginPage() {
     setError('')
 
     try {
-      // 1. Verify directly with Supabase using the 6-digit code
-      const supabase = createClient()
-      const cleanEmail = email.trim().toLowerCase()
-      
-      const { error: authError } = await supabase.auth.verifyOtp({
-        email: cleanEmail,
-        token: otp,
-        type: 'email' // This is the type for 6-digit numeric codes
+      // 1. Verify the 6-digit code with our bridge API
+      const res = await fetch('/api/auth/verify', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, otp })
       })
 
-      if (authError) {
-        setError(`SESSION ACTIVATION FAILED: ${authError.message.toUpperCase()}`)
+      const data = await res.json()
+
+      if (!res.ok) {
+        setError(data.error || 'Verification failed')
         setLoading(false)
         return
       }
 
-      // 2. Clear our custom cookie (optional cleanup)
-      document.cookie = "founder_email=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;"
+      if (data.tokenHash) {
+        // 2. We got a session token! Activate it locally.
+        const supabase = createClient()
+        const cleanEmail = email.trim().toLowerCase()
+        
+        const { error: authError } = await supabase.auth.verifyOtp({
+          email: cleanEmail,
+          token: data.tokenHash,
+          type: 'magiclink'
+        })
 
-      // 3. Success!
-      window.location.href = '/'
+        if (authError) {
+          setError(`SESSION ACTIVATION FAILED: ${authError.message.toUpperCase()}`)
+          setLoading(false)
+          return
+        }
+
+        // 3. Success!
+        window.location.href = '/'
+      }
     } catch (err) {
       setError('Verification failed. Please try again.')
       setLoading(false)
