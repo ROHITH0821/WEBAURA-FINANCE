@@ -12,12 +12,15 @@ export async function GET(request: Request) {
     const supabase = await createClient()
     const { data: { user }, error } = await supabase.auth.exchangeCodeForSession(code)
     if (!error && user) {
+      let redirectOrigin = process.env.NEXT_PUBLIC_APP_URL || 'https://finance.webauraindia.com'
       const h = await headers()
-      const host = h.get('x-forwarded-host') || h.get('host') || origin
-      const proto = h.get('x-forwarded-proto') || (host.includes('localhost') ? 'http' : 'https')
-      const trueOrigin = host.includes('://') ? host : `${proto}://${host}`
+      const host = h.get('x-forwarded-host') || h.get('host')
       
-      return NextResponse.redirect(`${trueOrigin}${next}`)
+      if (process.env.NODE_ENV !== 'production' && host?.includes('localhost')) {
+        redirectOrigin = `http://${host}`
+      }
+      
+      return NextResponse.redirect(`${redirectOrigin}${next}`)
     }
   }
 
