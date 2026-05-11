@@ -25,6 +25,7 @@ export async function POST(req: Request) {
     const expiresAt = new Date(Date.now() + 10 * 60 * 1000).toISOString() // 10 mins
 
     // 3. Store in DB
+    // We already configured the client to use 'finance' schema in createStaticClient()
     const { error: dbError } = await supabase
       .from('finance_otp_requests')
       .upsert({
