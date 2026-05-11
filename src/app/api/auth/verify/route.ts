@@ -35,8 +35,10 @@ export async function POST(req: Request) {
     }
 
     // 3. Success - Generate Magic Link
-    const reqUrl = new URL(req.url)
-    const origin = reqUrl.origin
+    const h = await headers()
+    const protocol = h.get('x-forwarded-proto') || 'https'
+    const host = h.get('x-forwarded-host') || h.get('host')
+    const origin = host ? `${protocol}://${host}` : new URL(req.url).origin
 
     const { data: authData, error: authError } = await supabase.auth.admin.generateLink({
       type: 'magiclink',
