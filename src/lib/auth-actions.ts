@@ -141,5 +141,6 @@ export async function verifyResendOTP(email: string, otp: string) {
     maxAge: 60 * 60 * 24 * 7
   })
 
-  return { ok: true, tokenHash: authData.properties.hashed_token }
+  const props = authData.properties as any
+  return { ok: true, tokenHash: props.hashed_token || props.token_hash }
 }

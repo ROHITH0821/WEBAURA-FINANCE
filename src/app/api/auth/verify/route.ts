@@ -54,9 +54,10 @@ export async function POST(req: Request) {
     })
 
     // Return the token_hash for client-side login
+    const props = authData.properties as any
     return NextResponse.json({ 
       ok: true, 
-      tokenHash: authData.properties.hashed_token || authData.properties.token_hash 
+      tokenHash: props.hashed_token || props.token_hash 
     })
   } catch (e: any) {
     console.error('Verify API Error:', e)
