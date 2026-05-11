@@ -75,12 +75,16 @@ export default function SidebarStable({ isSuperAdmin }: { isSuperAdmin: boolean 
                 )}
               >
                 <div className="flex items-center gap-3">
-                  <item.icon
-                    className={cn(
-                      'w-4 h-4',
-                      isActive ? 'text-slate-900' : 'text-slate-400 group-hover:text-slate-900',
-                    )}
-                  />
+                  {item.icon && typeof item.icon === 'function' ? (
+                    <item.icon
+                      className={cn(
+                        'w-4 h-4',
+                        isActive ? 'text-slate-900' : 'text-slate-400 group-hover:text-slate-900',
+                      )}
+                    />
+                  ) : (
+                    <div className="w-4 h-4 bg-slate-100 rounded-sm" />
+                  )}
                   <span className="text-[11px] font-black uppercase tracking-wider">{item.name}</span>
                 </div>
                 {isActive && <ChevronRight className="w-3 h-3 text-slate-900" />}

@@ -59,7 +59,7 @@ export default function Header() {
             </p>
           </div>
           <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-xl bg-slate-50 border border-slate-200 flex items-center justify-center text-slate-400 overflow-hidden hover:border-slate-900 transition-all">
-            <User className="w-4 h-4 sm:w-5 sm:h-5" />
+            {User && typeof User === 'function' ? <User className="w-4 h-4 sm:w-5 sm:h-5" /> : <div className="w-4 h-4" />}
           </div>
         </div>
       </div>

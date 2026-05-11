@@ -31,20 +31,20 @@ export default function DashboardLayoutClient({
         />
       )}
 
-      {/* Sidebar */}
-      <div className={`
-        fixed inset-y-0 left-0 z-50 transform lg:relative lg:translate-x-0 transition-transform duration-300 ease-in-out
-        ${isSidebarOpen ? 'translate-x-0' : '-translate-x-full'}
-      `}>
-        <Sidebar isSuperAdmin={isSuperAdmin} />
-        {/* Mobile Close Button */}
-        <button 
-          className="absolute top-4 right-4 p-2 lg:hidden text-slate-400 hover:text-slate-900"
-          onClick={() => setIsSidebarOpen(false)}
-        >
-          <X className="w-5 h-5" />
-        </button>
-      </div>
+        {/* Sidebar */}
+        <div className={`
+          fixed inset-y-0 left-0 z-50 transform lg:relative lg:translate-x-0 transition-transform duration-300 ease-in-out
+          ${isSidebarOpen ? 'translate-x-0' : '-translate-x-full'}
+        `}>
+          <Sidebar isSuperAdmin={isSuperAdmin} />
+          {/* Mobile Close Button */}
+          <button 
+            className="absolute top-4 right-4 p-2 lg:hidden text-slate-400 hover:text-slate-900"
+            onClick={() => setIsSidebarOpen(false)}
+          >
+            {X && typeof X === 'function' ? <X className="w-5 h-5" /> : <div className="w-5 h-5">✕</div>}
+          </button>
+        </div>
 
       <div className="flex flex-col flex-1 overflow-hidden relative w-full">
         <header className="sticky top-0 z-20 flex items-center bg-white border-b border-slate-200">
@@ -53,7 +53,7 @@ export default function DashboardLayoutClient({
             className="p-4 lg:hidden text-slate-500 hover:text-slate-900 transition-colors"
             onClick={() => setIsSidebarOpen(true)}
           >
-            <Menu className="w-6 h-6" />
+            {Menu && typeof Menu === 'function' ? <Menu className="w-6 h-6" /> : <div className="w-6 h-6">☰</div>}
           </button>
           
           <div className="flex-1">

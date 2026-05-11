@@ -35,7 +35,14 @@ export async function POST(req: Request) {
     }
 
     // 3. Success - Generate Magic Link
-    const origin = process.env.NEXT_PUBLIC_APP_URL || 'https://finance.webauraindia.com'
+    let origin = process.env.NEXT_PUBLIC_APP_URL || 'https://finance.webauraindia.com'
+    try {
+      const h = await headers()
+      const host = h.get('host')
+      if (host?.includes('localhost')) {
+        origin = `http://${host}`
+      }
+    } catch (e) {}
 
     const { data: authData, error: authError } = await supabase.auth.admin.generateLink({
       type: 'magiclink',
