@@ -24,7 +24,7 @@ export default async function ExpensesPage({
   ] = await Promise.all([
     supabase.auth.getUser(),
     // Use admin client so paid items always appear (no RLS surprises)
-    admin.from('expense_requests').select('*').order('created_at', { ascending: false }),
+    admin.from('expense_requests').select('*').order('request_date', { ascending: false }),
     admin.from('admin_users').select('email, full_name, role, is_active').eq('is_active', true)
   ])
 
