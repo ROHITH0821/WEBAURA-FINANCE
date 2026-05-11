@@ -75,42 +75,27 @@ export default function LoginPage() {
     setError('')
 
     try {
-      const res = await fetch('/api/auth/verify', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email, otp })
-      })
-      const data = await res.json()
+      // 1. Verify directly with Supabase using the 6-digit code
+      const supabase = createClient()
+      const cleanEmail = email.trim().toLowerCase()
       
-      if (data.error) {
-        setError(data.error)
+      const { error: authError } = await supabase.auth.verifyOtp({
+        email: cleanEmail,
+        token: otp,
+        type: 'email' // This is the type for 6-digit numeric codes
+      })
+
+      if (authError) {
+        setError(`SESSION ACTIVATION FAILED: ${authError.message.toUpperCase()}`)
         setLoading(false)
         return
       }
 
-      if (data.tokenHash) {
-        // PERFORM LOCAL LOGIN - NO REDIRECT TO SUPABASE SERVERS
-        const supabase = createClient()
-        const cleanEmail = email.trim().toLowerCase()
-        
-        const { error: authError } = await supabase.auth.verifyOtp({
-          email: cleanEmail,
-          token: data.tokenHash,
-          type: 'magiclink'
-        })
+      // 2. Clear our custom cookie (optional cleanup)
+      document.cookie = "founder_email=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;"
 
-        if (authError) {
-          setError(`Session activation failed: ${authError.message}`)
-          setLoading(false)
-        } else {
-          // Success - the onAuthStateChange listener will handle the redirect to '/'
-          // but we'll force it here just in case
-          window.location.href = '/'
-        }
-      } else {
-        setError('Server returned an invalid session state.')
-        setLoading(false)
-      }
+      // 3. Success!
+      window.location.href = '/'
     } catch (err) {
       setError('Verification failed. Please try again.')
       setLoading(false)
