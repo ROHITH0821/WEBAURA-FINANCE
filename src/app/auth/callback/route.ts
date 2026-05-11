@@ -1,5 +1,6 @@
 import { createClient } from '@/lib/supabaseServer'
 import { NextResponse } from 'next/server'
+import { headers } from 'next/headers'
 
 export async function GET(request: Request) {
   const { searchParams, origin } = new URL(request.url)
@@ -11,12 +12,12 @@ export async function GET(request: Request) {
     const supabase = await createClient()
     const { data: { user }, error } = await supabase.auth.exchangeCodeForSession(code)
     if (!error && user) {
-      const isLocalEnv = process.env.NODE_ENV === 'development'
-      if (isLocalEnv) {
-        return NextResponse.redirect(`${origin}${next}`)
-      } else {
-        return NextResponse.redirect(`${origin}${next}`)
-      }
+      const h = await headers()
+      const host = h.get('x-forwarded-host') || h.get('host') || origin
+      const proto = h.get('x-forwarded-proto') || (host.includes('localhost') ? 'http' : 'https')
+      const trueOrigin = host.includes('://') ? host : `${proto}://${host}`
+      
+      return NextResponse.redirect(`${trueOrigin}${next}`)
     }
   }
 

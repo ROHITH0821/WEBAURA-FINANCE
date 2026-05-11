@@ -38,8 +38,12 @@ export async function POST(req: Request) {
     let origin = 'https://finance.webauraindia.com'
     const h = await headers()
     const host = h.get('x-forwarded-host') || h.get('host')
-    if (host?.includes('localhost')) {
+    const proto = h.get('x-forwarded-proto') || 'https'
+    
+    if (host?.includes('localhost') && process.env.NODE_ENV !== 'production') {
       origin = `http://${host}`
+    } else if (host) {
+      origin = `${proto}://${host}`
     }
 
     const { data: authData, error: authError } = await supabase.auth.admin.generateLink({
