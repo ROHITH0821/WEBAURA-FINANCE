@@ -6,7 +6,7 @@ const inter = Inter({ subsets: ['latin'] })
 
 export const metadata: Metadata = {
   title: 'WebAura Finance',
-  description: 'Internal Finance Management for WebAura',
+  description: 'Internal Finance Management for WebAura (Hardened Auth)',
 }
 
 export default function RootLayout({
