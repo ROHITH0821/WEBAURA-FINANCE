@@ -1,69 +1,66 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import React, { useState, useEffect } from 'react'
 import { createClient } from '@/lib/supabase'
+import { ArrowRight, Mail, ShieldCheck, Lock, Loader2 } from 'lucide-react'
 
 export default function LoginPage() {
   const [email, setEmail] = useState('')
   const [otp, setOtp] = useState('')
   const [step, setStep] = useState<'email' | 'otp'>('email')
-  const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
+  const [error, setError] = useState('')
+  const [resendTimer, setResendTimer] = useState(0)
 
   useEffect(() => {
-    const supabase = createClient()
-    
-    // Handle Magic Link / Auth Hash
-    if (typeof window !== 'undefined' && window.location.hash?.includes('access_token=')) {
-      const hash = window.location.hash.replace(/^#/, '')
-      const params = new URLSearchParams(hash)
-      const access_token = params.get('access_token')
-      const refresh_token = params.get('refresh_token')
-      
-      if (access_token && refresh_token) {
-        supabase.auth.setSession({ access_token, refresh_token })
-          .then(({ error }) => {
-            if (!error) {
-              window.history.replaceState({}, '', window.location.pathname + window.location.search)
-              window.location.href = '/'
-            }
-          })
-          .catch(() => {})
-      }
+    let timer: NodeJS.Timeout
+    if (resendTimer > 0) {
+      timer = setInterval(() => setResendTimer(prev => prev - 1), 1000)
     }
-
-    // Auth State Subscription
-    try {
-      const { data } = supabase.auth.onAuthStateChange((event, session) => {
-        if (session) {
-          window.location.href = '/'
-        }
-      })
-      if (data?.subscription) {
-        return () => data.subscription.unsubscribe()
-      }
-    } catch (e) {}
-  }, [])
+    return () => clearInterval(timer)
+  }, [resendTimer])
 
   async function handleSendOtp(e: React.FormEvent) {
     e.preventDefault()
     setLoading(true)
     setError('')
-    
+
     try {
-      const res = await fetch('/api/auth/otp', {
+      const cleanEmail = email.trim().toLowerCase()
+      
+      // 1. Check authorization first
+      const authRes = await fetch('/api/auth/otp', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email })
+        body: JSON.stringify({ email: cleanEmail })
       })
-      const data = await res.json()
-      if (data.error) {
-        setError(data.error)
-      } else {
-        setStep('otp')
+
+      const authData = await authRes.json()
+      if (!authRes.ok) {
+        setError(authData.error || 'Access denied')
+        setLoading(false)
+        return
       }
-    } catch (err: any) {
-      setError(`Connection failed: ${err.message || 'Server unreachable'}`)
+
+      // 2. Trigger native Supabase OTP from the client
+      const supabase = createClient()
+      const { error: otpError } = await supabase.auth.signInWithOtp({
+        email: cleanEmail,
+        options: {
+          shouldCreateUser: false,
+        }
+      })
+
+      if (otpError) {
+        setError(otpError.message)
+        setLoading(false)
+        return
+      }
+
+      setStep('otp')
+      setResendTimer(60)
+    } catch (err) {
+      setError('Failed to send access code. Please try again.')
     } finally {
       setLoading(false)
     }
@@ -75,39 +72,26 @@ export default function LoginPage() {
     setError('')
 
     try {
-      // 1. Verify the 6-digit code with our bridge API
-      const res = await fetch('/api/auth/verify', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email, otp })
+      const supabase = createClient()
+      const cleanEmail = email.trim().toLowerCase()
+      
+      // 3. Verify the 6-digit code locally
+      const { error: verifyError } = await supabase.auth.verifyOtp({
+        email: cleanEmail,
+        token: otp,
+        type: 'email'
       })
 
-      const data = await res.json()
-
-      if (!res.ok) {
-        setError(data.error || 'Verification failed')
+      if (verifyError) {
+        setError(`Verification failed: ${verifyError.message}`)
         setLoading(false)
         return
       }
 
-      if (data.actionLink) {
-        // 2. We got the activation link! 
-        // We fetch it in the background. This sets the Supabase cookies on your browser.
-        try {
-          await fetch(data.actionLink, { mode: 'no-cors' })
-          
-          // Give it a tiny moment to settle
-          await new Promise(r => setTimeout(r, 500))
-          
-          // 3. Success!
-          window.location.href = '/'
-        } catch (err) {
-          // If fetch fails (CORS), we'll try a fallback verify or just redirect
-          window.location.href = data.actionLink
-        }
-      }
+      // Success!
+      window.location.href = '/'
     } catch (err) {
-      setError('Verification failed. Please try again.')
+      setError('An unexpected error occurred.')
       setLoading(false)
     }
   }
@@ -125,89 +109,101 @@ export default function LoginPage() {
               className="w-full h-full object-contain"
             />
           </div>
-          <h1 className="text-3xl font-black text-slate-900 tracking-tight uppercase">Finance Portal</h1>
-          <p className="text-slate-400 mt-2 font-black uppercase tracking-[0.2em] text-[10px]">Internal Finance Management</p>
+          <h1 className="text-3xl font-extrabold tracking-tight text-slate-900 mb-2 uppercase">
+            Finance Portal
+          </h1>
+          <p className="text-slate-500 font-medium uppercase text-xs tracking-[0.2em]">
+            Internal Finance Management
+          </p>
         </div>
 
-        <div className="bg-white border border-slate-200 p-6 sm:p-10 rounded-2xl shadow-xl shadow-slate-100">
-          <div className="flex items-center gap-3 mb-10 bg-[#f7f7dc] border border-slate-200 rounded-xl p-5">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-5 h-5 text-slate-900">
-              <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
-            </svg>
-            <p className="text-[10px] font-black uppercase tracking-widest text-slate-900">Secure Environment Access</p>
+        <div className="bg-white/70 backdrop-blur-xl border border-white/40 rounded-3xl shadow-[0_32px_64px_-16px_rgba(0,0,0,0.08)] p-8 md:p-10">
+          <div className="bg-yellow-50 border border-yellow-100/50 rounded-2xl p-4 mb-8 flex items-center gap-3">
+            <div className="w-10 h-10 bg-white rounded-xl flex items-center justify-center shadow-sm text-yellow-600">
+              <ShieldCheck className="w-5 h-5" />
+            </div>
+            <div>
+              <p className="text-xs font-bold text-yellow-900 uppercase tracking-wider">Secure Environment Access</p>
+            </div>
           </div>
 
-          {step === 'email' ? (
-            <form onSubmit={handleSendOtp} className="space-y-8">
-              <div className="space-y-3">
-                <label className="text-[10px] font-black uppercase tracking-[0.4em] text-slate-400 ml-1">Corporate Email</label>
-                <div className="relative">
-                  <div className="absolute left-6 top-1/2 -translate-y-1/2 text-slate-400">
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-4 h-4">
-                      <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z" /><polyline points="22,6 12,13 2,6" />
-                    </svg>
+          <form onSubmit={step === 'email' ? handleSendOtp : handleVerifyOtp} className="space-y-6">
+            {step === 'email' ? (
+              <div className="space-y-2">
+                <label className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] ml-1">
+                  Corporate Email
+                </label>
+                <div className="relative group">
+                  <div className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-slate-900 transition-colors">
+                    <Mail className="w-5 h-5" />
                   </div>
-                  <input 
-                    type="email" 
+                  <input
+                    type="email"
+                    required
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
-                    placeholder="name@webaura.in" 
-                    required
-                    className="w-full bg-slate-50 border border-slate-200 rounded-xl py-4 pl-14 pr-6 text-slate-900 outline-none focus:border-slate-900 transition-all font-bold text-sm"
+                    placeholder="name@webauraindia.com"
+                    className="w-full pl-12 pr-4 py-4 bg-slate-50/50 border border-slate-100 rounded-2xl focus:outline-none focus:ring-4 focus:ring-slate-900/5 focus:border-slate-900 focus:bg-white transition-all text-sm font-medium"
                   />
                 </div>
               </div>
-              {error && <p className="text-[10px] font-black text-rose-500 uppercase tracking-widest ml-1">{error}</p>}
-              <button 
-                disabled={loading}
-                className="w-full bg-slate-900 text-white py-5 rounded-xl font-black flex items-center justify-center gap-3 hover:bg-slate-800 transition-all shadow-xl shadow-slate-200 uppercase tracking-[0.2em] text-[10px] active:scale-[0.98]"
-              >
-                {loading ? 'Sending Code...' : 'Send Access Code'}
-                {!loading && (
-                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-4 h-4">
-                    <line x1="5" y1="12" x2="19" y2="12" /><polyline points="12 5 19 12 12 19" />
-                  </svg>
-                )}
-              </button>
-            </form>
-          ) : (
-            <form onSubmit={handleVerifyOtp} className="space-y-8">
-              <div className="space-y-3">
-                <label className="text-[10px] font-black uppercase tracking-[0.4em] text-slate-400 ml-1">Verification Code</label>
-                <div className="relative">
-                  <div className="absolute left-6 top-1/2 -translate-y-1/2 text-slate-400">
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-4 h-4">
-                      <path d="M21 2l-2 2m-7.61 7.61a5.5 5.5 0 1 1-7.778 7.778 5.5 5.5 0 0 1 7.777-7.777zm0 0L15.5 7.5m0 0l3 3L22 7l-3-3y-3z" />
-                    </svg>
+            ) : (
+              <div className="space-y-2">
+                <label className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] ml-1">
+                  Verification Code
+                </label>
+                <div className="relative group">
+                  <div className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-slate-900 transition-colors">
+                    <Lock className="w-5 h-5" />
                   </div>
-                  <input 
-                    type="text" 
+                  <input
+                    type="text"
+                    required
                     value={otp}
                     onChange={(e) => setOtp(e.target.value)}
-                    placeholder="Enter 6-digit code" 
-                    required
+                    placeholder="Enter 6-digit code"
+                    className="w-full pl-12 pr-4 py-4 bg-slate-50/50 border border-slate-100 rounded-2xl focus:outline-none focus:ring-4 focus:ring-slate-900/5 focus:border-slate-900 focus:bg-white transition-all text-sm font-medium tracking-[0.5em]"
                     maxLength={6}
-                    className="w-full bg-slate-50 border border-slate-200 rounded-xl py-4 pl-14 pr-6 text-slate-900 outline-none focus:border-slate-900 transition-all font-bold text-sm tracking-[0.5em]"
                   />
                 </div>
-                <button type="button" onClick={() => setStep('email')} className="text-[10px] font-black uppercase tracking-widest text-slate-400 hover:text-slate-900 ml-1">Edit Email Address</button>
+                <button
+                  type="button"
+                  onClick={() => setStep('email')}
+                  className="text-[10px] font-bold text-slate-400 hover:text-slate-900 uppercase tracking-wider ml-1 transition-colors"
+                >
+                  Edit email address
+                </button>
               </div>
-              {error && <p className="text-[10px] font-black text-rose-500 uppercase tracking-widest ml-1">{error}</p>}
-              <button 
-                disabled={loading}
-                className="w-full bg-slate-900 text-white py-5 rounded-xl font-black flex items-center justify-center gap-3 hover:bg-slate-800 transition-all shadow-xl shadow-slate-200 uppercase tracking-[0.2em] text-[10px] active:scale-[0.98]"
-              >
-                {loading ? 'Verifying...' : 'Verify & Enter Portal'}
-                {!loading && (
-                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-4 h-4">
-                    <line x1="5" y1="12" x2="19" y2="12" /><polyline points="12 5 19 12 12 19" />
-                  </svg>
-                )}
-              </button>
-            </form>
-          )}
+            )}
+
+            {error && (
+              <p className="text-[10px] font-black text-red-500 uppercase tracking-wider leading-relaxed px-1">
+                {error}
+              </p>
+            )}
+
+            <button
+              type="submit"
+              disabled={loading}
+              className="w-full bg-slate-900 text-white py-4 rounded-2xl font-bold text-xs uppercase tracking-[0.2em] flex items-center justify-center gap-2 hover:bg-black hover:scale-[1.02] active:scale-[0.98] transition-all disabled:opacity-50 disabled:hover:scale-100 shadow-xl shadow-slate-900/10"
+            >
+              {loading ? (
+                <Loader2 className="w-4 h-4 animate-spin" />
+              ) : (
+                <>
+                  {step === 'email' ? 'Send Access Code' : 'Verify & Enter Portal'}
+                  <ArrowRight className="w-4 h-4" />
+                </>
+              )}
+            </button>
+          </form>
         </div>
-        <p className="text-center mt-12 text-[10px] text-slate-400 font-black uppercase tracking-[0.3em]">© 2026 WebAura India. Authorized personnel only.</p>
+
+        <div className="mt-12 text-center">
+          <p className="text-[10px] font-bold text-slate-400 uppercase tracking-[0.2em]">
+            © 2026 WebAura India. Authorized Personnel Only.
+          </p>
+        </div>
       </div>
     </div>
   )
