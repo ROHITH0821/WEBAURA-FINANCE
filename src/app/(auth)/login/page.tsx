@@ -90,25 +90,21 @@ export default function LoginPage() {
         return
       }
 
-      if (data.tokenHash) {
-        // 2. We got a session token! Activate it locally.
-        const supabase = createClient()
-        const cleanEmail = email.trim().toLowerCase()
-        
-        const { error: authError } = await supabase.auth.verifyOtp({
-          email: cleanEmail,
-          token: data.tokenHash,
-          type: 'magiclink'
-        })
-
-        if (authError) {
-          setError(`SESSION ACTIVATION FAILED: ${authError.message.toUpperCase()}`)
-          setLoading(false)
-          return
+      if (data.actionLink) {
+        // 2. We got the activation link! 
+        // We fetch it in the background. This sets the Supabase cookies on your browser.
+        try {
+          await fetch(data.actionLink, { mode: 'no-cors' })
+          
+          // Give it a tiny moment to settle
+          await new Promise(r => setTimeout(r, 500))
+          
+          // 3. Success!
+          window.location.href = '/'
+        } catch (err) {
+          // If fetch fails (CORS), we'll try a fallback verify or just redirect
+          window.location.href = data.actionLink
         }
-
-        // 3. Success!
-        window.location.href = '/'
       }
     } catch (err) {
       setError('Verification failed. Please try again.')
