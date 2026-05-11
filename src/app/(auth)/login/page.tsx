@@ -91,8 +91,10 @@ export default function LoginPage() {
       if (data.tokenHash) {
         // PERFORM LOCAL LOGIN - NO REDIRECT TO SUPABASE SERVERS
         const supabase = createClient()
+        const cleanEmail = email.trim().toLowerCase()
+        
         const { error: authError } = await supabase.auth.verifyOtp({
-          email,
+          email: cleanEmail,
           token: data.tokenHash,
           type: 'magiclink'
         })
