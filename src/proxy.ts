@@ -36,20 +36,27 @@ export async function proxy(request: NextRequest) {
     }
   )
 
-  const {
-    data: { user },
-  } = await supabase.auth.getUser()
+  const { data: { user } } = await supabase.auth.getUser()
+  const { pathname } = request.nextUrl
 
-  // Protect dashboard routes
-  if (request.nextUrl.pathname.startsWith('/') && 
-      !request.nextUrl.pathname.startsWith('/login') && 
-      !user) {
-    return NextResponse.redirect(new URL('/login', request.url))
+  // 1. Allow public routes and auth APIs
+  if (
+    pathname.startsWith('/login') || 
+    pathname.startsWith('/api/auth') || 
+    pathname.startsWith('/auth/callback') ||
+    pathname.startsWith('/_next') ||
+    pathname.includes('.') // static files (favicon, images, etc.)
+  ) {
+    // Redirect logged in users away from login page
+    if (pathname === '/login' && user) {
+      return NextResponse.redirect(new URL('/', request.url))
+    }
+    return response
   }
 
-  // Redirect if already logged in
-  if (request.nextUrl.pathname.startsWith('/login') && user) {
-    return NextResponse.redirect(new URL('/', request.url))
+  // 2. Protect all other routes
+  if (!user) {
+    return NextResponse.redirect(new URL('/login', request.url))
   }
 
   return response
