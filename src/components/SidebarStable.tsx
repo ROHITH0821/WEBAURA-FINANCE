@@ -2,7 +2,7 @@
 
 import Link from 'next/link'
 import Image from 'next/image'
-import { usePathname } from 'next/navigation'
+import * as navigation from 'next/navigation'
 import { useMemo } from 'react'
 import {
   LayoutDashboard,
@@ -30,7 +30,7 @@ const navItems = [
 ]
 
 export default function SidebarStable({ isSuperAdmin }: { isSuperAdmin: boolean }) {
-  const pathname = usePathname()
+  const pathname = typeof navigation.usePathname === 'function' ? navigation.usePathname() : '/'
   const filteredItems = useMemo(
     () => navItems.filter((i) => ((i as any).superAdmin ? isSuperAdmin : true)),
     [isSuperAdmin],

@@ -1,9 +1,11 @@
 'use client'
 
 import { ReactNode, useState, useEffect } from 'react'
-import { usePathname } from 'next/navigation'
-import Sidebar from '@/components/SidebarStable'
-import Header from '@/components/Header'
+import dynamic from 'next/dynamic'
+import * as navigation from 'next/navigation'
+
+const Sidebar = dynamic(() => import('@/components/SidebarStable'), { ssr: false })
+const Header = dynamic(() => import('@/components/Header'), { ssr: false })
 import { Menu, X } from 'lucide-react'
 
 export default function DashboardLayoutClient({ 
@@ -14,7 +16,7 @@ export default function DashboardLayoutClient({
   isSuperAdmin: boolean
 }) {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false)
-  const pathname = usePathname()
+  const pathname = typeof navigation.usePathname === 'function' ? navigation.usePathname() : '/'
 
   // Close sidebar on navigation
   useEffect(() => {
