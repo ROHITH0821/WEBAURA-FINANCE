@@ -81,16 +81,36 @@ export default function LoginPage() {
         body: JSON.stringify({ email, otp })
       })
       const data = await res.json()
+      
       if (data.error) {
         setError(data.error)
-      } else if (data.redirectUrl) {
-        window.location.href = data.redirectUrl
+        setLoading(false)
+        return
+      }
+
+      if (data.tokenHash) {
+        // PERFORM LOCAL LOGIN - NO REDIRECT TO SUPABASE SERVERS
+        const supabase = createClient()
+        const { error: authError } = await supabase.auth.verifyOtp({
+          email,
+          token: data.tokenHash,
+          type: 'magiclink'
+        })
+
+        if (authError) {
+          setError(`Session activation failed: ${authError.message}`)
+          setLoading(false)
+        } else {
+          // Success - the onAuthStateChange listener will handle the redirect to '/'
+          // but we'll force it here just in case
+          window.location.href = '/'
+        }
       } else {
-        window.location.href = '/'
+        setError('Server returned an invalid session state.')
+        setLoading(false)
       }
     } catch (err) {
       setError('Verification failed. Please try again.')
-    } finally {
       setLoading(false)
     }
   }
