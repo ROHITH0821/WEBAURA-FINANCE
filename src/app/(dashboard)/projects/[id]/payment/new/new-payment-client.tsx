@@ -2,7 +2,7 @@
 'use client'
 
 import { useMemo, useState } from 'react'
-import { useRouter } from 'next/navigation'
+import * as navigation from 'next/navigation'
 import {
   ArrowLeft,
   Save,
@@ -28,7 +28,7 @@ export default function NewPaymentClient({
   founders: FounderOption[]
   defaultReceivedBy: string
 }) {
-  const router = useRouter()
+  const router = typeof navigation.useRouter === 'function' ? navigation.useRouter() : null
 
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
@@ -61,8 +61,8 @@ export default function NewPaymentClient({
       })
       if (r.ok === false) throw new Error(r.error)
 
-      router.push(`/projects/${projectId}`)
-      router.refresh()
+      router?.push(`/projects/${projectId}`)
+      router?.refresh()
     } catch (err: any) {
       setError(err?.message || 'Failed to record payment')
       setLoading(false)
@@ -73,7 +73,7 @@ export default function NewPaymentClient({
     <div className="space-y-10 animate-in fade-in slide-in-from-bottom-4 duration-700">
       <div className="flex items-center gap-4">
         <button
-          onClick={() => router.back()}
+          onClick={() => router?.back()}
           className="p-2 rounded-full hover:bg-slate-100 transition-all text-slate-400 hover:text-slate-900"
         >
           <ArrowLeft className="w-5 h-5" />
@@ -246,7 +246,7 @@ export default function NewPaymentClient({
           <div className="pt-8 border-t border-slate-100 flex gap-6">
             <button
               type="button"
-              onClick={() => router.back()}
+              onClick={() => router?.back()}
               className="flex-1 py-5 rounded-xl border border-slate-200 text-slate-400 font-black hover:bg-slate-50 hover:text-slate-900 transition-all uppercase tracking-[0.2em] text-[10px]"
             >
               Discard Changes

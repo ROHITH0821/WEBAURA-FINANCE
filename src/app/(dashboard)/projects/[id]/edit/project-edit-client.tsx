@@ -1,12 +1,12 @@
 'use client'
 
 import { useMemo, useState, useTransition } from 'react'
-import { useRouter } from 'next/navigation'
+import * as navigation from 'next/navigation'
 import { ArrowLeft, Save, Trash2, Loader2 } from 'lucide-react'
 import { updateProjectAction, deleteProjectAction } from '@/lib/project-actions'
 
 export default function ProjectEditClient(props: { project: any; founders: any[] }) {
-  const router = useRouter()
+  const router = typeof navigation.useRouter === 'function' ? navigation.useRouter() : null
   const [pending, startTransition] = useTransition()
   const [dangerOpen, setDangerOpen] = useState(false)
   const [confirm, setConfirm] = useState('')
@@ -35,7 +35,7 @@ export default function ProjectEditClient(props: { project: any; founders: any[]
     <div className="space-y-10 animate-in slide-in-from-bottom-4 duration-700">
       <div className="flex items-center justify-between">
         <button
-          onClick={() => router.back()}
+          onClick={() => router?.back()}
           className="flex items-center gap-3 text-slate-400 hover:text-slate-900 transition-colors group"
         >
           <ArrowLeft className="w-4 h-4 group-hover:-translate-x-1 transition-transform" />
@@ -60,8 +60,8 @@ export default function ProjectEditClient(props: { project: any; founders: any[]
                   window.alert(r.error)
                   return
                 }
-                router.push(`/projects/${props.project.id}`)
-                router.refresh()
+                router?.push(`/projects/${props.project.id}`)
+                router?.refresh()
               })
             }
             className="px-8 py-4 rounded-xl bg-slate-900 text-white text-[10px] font-black uppercase tracking-widest hover:bg-slate-800 transition-all shadow-xl shadow-slate-200 disabled:opacity-30 flex items-center gap-2"
@@ -228,8 +228,8 @@ export default function ProjectEditClient(props: { project: any; founders: any[]
                       window.alert(r.error)
                       return
                     }
-                    router.push('/projects')
-                    router.refresh()
+                    router?.push('/projects')
+                    router?.refresh()
                   })
                 }
                 className="px-7 py-3 rounded-xl bg-rose-600 text-white text-[10px] font-black uppercase tracking-widest hover:bg-rose-700 transition-all disabled:opacity-30"

@@ -1,16 +1,16 @@
 'use client'
 
 import { useMemo } from 'react'
-import { usePathname, useRouter, useSearchParams } from 'next/navigation'
+import * as navigation from 'next/navigation'
 
 export default function ExpensesFilters(props: {
   isSuperAdmin: boolean
   founders: { email: string; name: string }[]
   current: { view: 'all' | 'mine'; status: string; founder: string }
 }) {
-  const router = useRouter()
-  const pathname = usePathname()
-  const sp = useSearchParams()
+  const router = typeof navigation.useRouter === 'function' ? navigation.useRouter() : null
+  const pathname = typeof navigation.usePathname === 'function' ? navigation.usePathname() : '/'
+  const sp = typeof navigation.useSearchParams === 'function' ? navigation.useSearchParams() : new URLSearchParams()
 
   const founderOptions = useMemo(() => {
     return (props.founders || []).map((f) => ({ email: f.email.toLowerCase(), name: f.name }))
@@ -20,7 +20,7 @@ export default function ExpensesFilters(props: {
     const next = new URLSearchParams(sp.toString())
     if (!value) next.delete(key)
     else next.set(key, value)
-    router.push(`${pathname}?${next.toString()}`)
+    router?.push(`${pathname}?${next.toString()}`)
   }
 
   return (
