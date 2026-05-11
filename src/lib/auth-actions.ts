@@ -10,15 +10,18 @@ import crypto from 'crypto'
  * Step 1: Send OTP via Resend
  */
 export async function sendResendOTP(email: string) {
+  const h = await headers()
+  const host = h.get('host')
+  const proto = h.get('x-forwarded-proto') || (process.env.NODE_ENV === 'production' ? 'https' : 'http')
+  
   let origin = process.env.NEXT_PUBLIC_APP_URL || 'https://finance.webauraindia.com'
-  try {
-    const h = await headers()
-    const host = h.get('host')
-    if (process.env.NODE_ENV !== 'production' && host?.includes('localhost')) {
+  
+  if (host) {
+    if (host.includes('localhost') || host.includes('127.0.0.1')) {
       origin = `http://${host}`
+    } else {
+      origin = `${proto}://${host}`
     }
-  } catch (e) {
-    // Build time
   }
 
   if (!process.env.NEXT_PUBLIC_SUPABASE_URL || !process.env.SUPABASE_SERVICE_ROLE_KEY) {
@@ -191,16 +194,18 @@ export async function verifyResendOTP(email: string, otp: string) {
   }
 
   // 3. Success - Generate Supabase Magic Link via Admin API
-  // This allows us to use Resend for delivery but Supabase for the session
+  const h = await headers()
+  const host = h.get('host')
+  const proto = h.get('x-forwarded-proto') || (process.env.NODE_ENV === 'production' ? 'https' : 'http')
+  
   let origin = process.env.NEXT_PUBLIC_APP_URL || 'https://finance.webauraindia.com'
-  try {
-    const h = await headers()
-    const host = h.get('host')
-    if (process.env.NODE_ENV !== 'production' && host?.includes('localhost')) {
+  
+  if (host) {
+    if (host.includes('localhost') || host.includes('127.0.0.1')) {
       origin = `http://${host}`
+    } else {
+      origin = `${proto}://${host}`
     }
-  } catch (e) {
-    // Build time
   }
 
   const { data: authData, error: authError } = await supabase.auth.admin.generateLink({

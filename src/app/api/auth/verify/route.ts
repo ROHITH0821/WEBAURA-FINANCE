@@ -34,14 +34,21 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: `Incorrect code. ${5 - newAttempts} attempts remaining.` }, { status: 400 })
     }
 
-    // 3. Success - Generate Magic Link
-    let origin = process.env.NEXT_PUBLIC_APP_URL || 'https://finance.webauraindia.com'
+    // 3. Success - Generate Magic Link with robust origin detection
     const h = await headers()
     const host = h.get('x-forwarded-host') || h.get('host')
+    const proto = h.get('x-forwarded-proto') || 'https'
     
-    // Only use detected host if we're not in production or if NEXT_PUBLIC_APP_URL is missing
-    if (process.env.NODE_ENV !== 'production' && host?.includes('localhost')) {
-      origin = `http://${host}`
+    let origin = process.env.NEXT_PUBLIC_APP_URL || 'https://finance.webauraindia.com'
+    
+    if (host) {
+      if (host.includes('localhost') || host.includes('127.0.0.1')) {
+        // Only use localhost if specifically on a local environment
+        origin = `http://${host}`
+      } else {
+        // Use the actual domain we are currently on (Vercel, Production, etc.)
+        origin = `${proto}://${host}`
+      }
     }
 
     const { data: authData, error: authError } = await supabase.auth.admin.generateLink({
