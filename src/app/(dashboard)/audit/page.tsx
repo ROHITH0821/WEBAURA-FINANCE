@@ -3,6 +3,7 @@ import Link from 'next/link'
 import { createClient, createStaticClient } from '@/lib/supabaseServer'
 import { getFounders, getAuditLogs } from '@/lib/data'
 import { requireSuperAdmin } from '@/lib/admin-gates'
+import SearchInput from '@/components/SearchInput'
 
 export const dynamic = 'force-dynamic'
 
@@ -27,18 +28,31 @@ export default async function AuditPage({
   const limitRaw = typeof sp.limit === 'string' ? sp.limit : ''
   const limit = Math.max(5, Math.min(500, Number(limitRaw || 25)))
 
+  const qParam = String(Array.isArray(sp.q) ? sp.q[0] : sp.q || '').toLowerCase()
+
   // Use high-performance cached data
   const [
     { data: { user } },
     foundersData,
-    auditLogsFull
+    auditLogsRaw
   ] = await Promise.all([
     supabase.auth.getUser(),
     getFounders(),
     getAuditLogs()
   ])
 
-  const auditLogs = (auditLogsFull || []).slice(0, limit)
+  let auditLogsFiltered = auditLogsRaw || []
+  if (qParam) {
+    auditLogsFiltered = auditLogsFiltered.filter(log => {
+      const by = String(log.action_by || '').toLowerCase()
+      const type = String(log.action_type || '').toLowerCase()
+      const rec = String(log.record_type || '').toLowerCase()
+      const rid = String(log.record_id || '').toLowerCase()
+      return by.includes(qParam) || type.includes(qParam) || rec.includes(qParam) || rid.includes(qParam)
+    })
+  }
+
+  const auditLogs = auditLogsFiltered.slice(0, limit)
 
   const foundersByEmail = new Map(
     (foundersData || [])
@@ -71,10 +85,13 @@ export default async function AuditPage({
       </div>
 
       <div className="glass-card overflow-hidden bg-white">
-        <div className="p-4 md:p-8 border-b border-slate-100 flex items-center justify-between">
+        <div className="p-4 md:p-8 border-b border-slate-100 flex flex-col md:flex-row gap-4 items-start md:items-center justify-between bg-slate-50/30">
           <div className="flex items-center gap-3">
             <History className="w-4 h-4 md:w-5 h-5 text-slate-900" />
             <h3 className="text-sm md:text-base font-black text-slate-900 uppercase tracking-tight">Real-time Activity</h3>
+          </div>
+          <div className="flex-1 max-w-md w-full">
+            <SearchInput placeholder="Filter by user, action, or record type..." defaultValue={qParam} />
           </div>
           <Link
             href="/api/audit/export"

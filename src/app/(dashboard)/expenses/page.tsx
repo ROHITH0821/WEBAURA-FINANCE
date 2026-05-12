@@ -5,6 +5,7 @@ import { createClient } from '@/lib/supabaseServer'
 import { getExpenseRequests, getFounders } from '@/lib/data'
 import ExpenseRow from '@/components/ExpenseRow'
 import ExpensesFilters from './expenses-filters'
+import SearchInput from '@/components/SearchInput'
 
 export const dynamic = 'force-dynamic'
 
@@ -52,7 +53,9 @@ export default async function ExpensesPage({
         ? founderParam
         : ''
 
-  const filteredExpenses = expenses
+  const qParam = String(Array.isArray(sp.q) ? sp.q[0] : sp.q || '').toLowerCase()
+  
+  let filteredExpenses = expenses
     .filter((e) => {
       const st = String(e.status || '').toLowerCase()
       if (statusParam === 'all') return true
@@ -64,6 +67,15 @@ export default async function ExpensesPage({
       if (effectiveFounder) return who === effectiveFounder
       return true
     })
+
+  if (qParam) {
+    filteredExpenses = filteredExpenses.filter(e => {
+      const desc = String(e.spent_on || '').toLowerCase()
+      const cat = String(e.category || '').toLowerCase()
+      const amt = String(e.amount || '')
+      return desc.includes(qParam) || cat.includes(qParam) || amt.includes(qParam)
+    })
+  }
 
   const filtersActive =
     (isAdmin && effectiveView === 'all') ||
@@ -122,11 +134,9 @@ export default async function ExpensesPage({
       <div className="glass-card overflow-hidden bg-white">
         <div className="p-4 md:p-8 border-b border-slate-100 flex flex-col md:flex-row gap-4 md:gap-6 items-start md:items-center justify-between">
           <div className="relative w-full md:w-96">
-            <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
-            <input 
-              type="text" 
-              placeholder="Filter expenses..." 
-              className="w-full bg-slate-50 border border-slate-200 rounded-xl py-3 pl-12 pr-4 text-xs outline-none focus:border-slate-900 transition-all font-medium"
+            <SearchInput 
+              placeholder="Search expenses by description, category, amount..." 
+              defaultValue={qParam} 
             />
           </div>
           <div className="flex gap-4 w-full md:w-auto">

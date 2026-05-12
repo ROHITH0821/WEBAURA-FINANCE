@@ -153,6 +153,7 @@ export const getExpenseRequests = unstable_cache(
       .from('expense_requests')
       .select('*')
       .order('request_date', { ascending: false })
+      .order('created_at', { ascending: false })
     return data || []
   },
   ['expenses-list'],
