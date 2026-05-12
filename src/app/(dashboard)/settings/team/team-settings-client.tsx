@@ -1,3 +1,7 @@
+'use client'
+
+import { useMemo, useState, useTransition } from 'react'
+import { Loader2, Plus } from 'lucide-react'
 import * as navigation from 'next/navigation'
 import { addTeamMemberAction, setTeamMemberActiveAction, setTeamMemberNameAction } from '@/lib/team-actions'
 
