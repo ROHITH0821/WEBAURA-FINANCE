@@ -56,12 +56,10 @@ export default function ProjectEditClient(props: { project: any; founders: any[]
             onClick={() =>
               startTransition(async () => {
                 const r = await updateProjectAction(props.project.id, form)
-                if (r.ok === false) {
+                if (r?.ok === false) {
                   window.alert(r.error)
                   return
                 }
-                router?.push(`/projects/${props.project.id}`)
-                router?.refresh()
               })
             }
             className="px-8 py-4 rounded-xl bg-slate-900 text-white text-[10px] font-black uppercase tracking-widest hover:bg-slate-800 transition-all shadow-xl shadow-slate-200 disabled:opacity-30 flex items-center gap-2"

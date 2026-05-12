@@ -59,10 +59,10 @@ export default function NewPaymentClient({
         transactionRef: formData.transaction_ref,
         notes: formData.notes,
       })
-      if (r.ok === false) throw new Error(r.error)
 
-      router?.push(`/projects/${projectId}`)
-      router?.refresh()
+      // If the server action redirects, the code below won't execute.
+      // If it returns an error, we catch it here.
+      if (r?.ok === false) throw new Error(r.error)
     } catch (err: any) {
       setError(err?.message || 'Failed to record payment')
       setLoading(false)

@@ -1,6 +1,7 @@
 'use server'
 
 import { revalidateTag } from 'next/cache'
+import { redirect } from 'next/navigation'
 import { createStaticClient } from '@/lib/supabaseServer'
 import { requireSuperAdmin } from '@/lib/admin-gates'
 
@@ -44,11 +45,13 @@ export async function updateProjectAction(projectId: string, patch: any): Promis
       console.warn('Revalidation warning:', revalidateErr)
     }
 
-    return { ok: true }
   } catch (err: any) {
+    if (err?.digest?.includes('NEXT_REDIRECT')) throw err
     console.error('CRITICAL ERROR in updateProjectAction:', err)
     return { ok: false, error: err?.message || 'System error during update' }
   }
+
+  redirect(`/projects/${projectId}`)
 }
 
 export async function deleteProjectAction(projectId: string, confirmCode: string): Promise<ActionResult> {

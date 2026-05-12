@@ -1,6 +1,7 @@
 'use server'
 
 import { revalidateTag } from 'next/cache'
+import { redirect } from 'next/navigation'
 import { createStaticClient } from '@/lib/supabaseServer'
 import { requireActiveAdmin } from '@/lib/admin-gates'
 
@@ -69,15 +70,14 @@ export async function recordPaymentAction(input: {
       revalidate('projects')
       revalidate('finance-summary')
       revalidate('audit')
-    } catch (revalidateErr) {
-      console.warn('Revalidation warning:', revalidateErr)
-    }
-
     console.log('recordPaymentAction completed successfully')
-    return { ok: true }
   } catch (err: any) {
+    if (err?.digest?.includes('NEXT_REDIRECT')) throw err
     console.error('CRITICAL ERROR in recordPaymentAction:', err)
     return { ok: false, error: `System Failure: ${err?.message || 'Unknown error'}` }
   }
+
+  // Redirect outside try-catch
+  redirect(`/projects/${input.projectId}`)
 }
 
