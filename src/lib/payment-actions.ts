@@ -70,6 +70,10 @@ export async function recordPaymentAction(input: {
       revalidate('projects')
       revalidate('finance-summary')
       revalidate('audit')
+    } catch (revalidateErr) {
+      console.warn('Revalidation warning:', revalidateErr)
+    }
+
     console.log('recordPaymentAction completed successfully')
   } catch (err: any) {
     if (err?.digest?.includes('NEXT_REDIRECT')) throw err
