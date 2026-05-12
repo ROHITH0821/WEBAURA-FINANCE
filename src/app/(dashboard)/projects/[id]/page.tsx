@@ -70,11 +70,6 @@ export default async function ProjectDetailPage({
         <p className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-300">
           ID: {id || '—'}
         </p>
-        {projectErr?.message ? (
-          <p className="text-[10px] font-bold text-rose-600 max-w-xl text-center">
-            {projectErr.message}
-          </p>
-        ) : null}
       </div>
     )
   }
