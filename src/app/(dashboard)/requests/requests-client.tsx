@@ -22,6 +22,7 @@ export default function RequestsClient(props: {
   pendingReferralLeadRewards: any[]
   pendingRecruitmentRewards: any[]
 }) {
+  const router = navigation.useRouter()
   const [tab, setTab] = useState<'expenses' | 'referrals' | 'recruitment'>('expenses')
   const [pending, startTransition] = useTransition()
 
@@ -231,6 +232,7 @@ function ExpenseCard({
                 startTransition(async () => {
                   const r = await approveExpenseRequestAction(row.id, myEmail, payRef.trim())
                   if (r.ok === false) window.alert(r.error)
+                  router.refresh()
                   setPayOpen(false)
                 })
               }
@@ -260,6 +262,7 @@ function ExpenseCard({
                 startTransition(async () => {
                   const r = await rejectExpenseRequestAction(row.id, myEmail, rejectReason.trim())
                   if (r.ok === false) window.alert(r.error)
+                  router.refresh()
                   setRejectOpen(false)
                 })
               }
@@ -324,6 +327,7 @@ function ReferralCard({
             startTransition(async () => {
               const r = await approveReferralLeadRewardAction(row.id)
               if (r.ok === false) window.alert(r.error)
+              router.refresh()
             })
           }
           className="px-5 py-3 rounded-xl border border-slate-200 text-slate-700 text-[10px] font-black uppercase tracking-widest hover:bg-slate-50 transition-all disabled:opacity-30"
@@ -365,6 +369,7 @@ function ReferralCard({
                 startTransition(async () => {
                   const r = await payReferralLeadRewardAction(row.id, payRef.trim())
                   if (r.ok === false) window.alert(r.error)
+                  router.refresh()
                   setPayOpen(false)
                 })
               }
@@ -394,6 +399,7 @@ function ReferralCard({
                 startTransition(async () => {
                   const r = await rejectReferralLeadRewardAction(row.id, rejectReason.trim())
                   if (r.ok === false) window.alert(r.error)
+                  router.refresh()
                   setRejectOpen(false)
                 })
               }
@@ -449,6 +455,7 @@ function RecruitmentCard({
             startTransition(async () => {
               const r = await approveRecruitmentRewardAction(row.id)
               if (r.ok === false) window.alert(r.error)
+              router.refresh()
             })
           }
           className="px-5 py-3 rounded-xl border border-slate-200 text-slate-700 text-[10px] font-black uppercase tracking-widest hover:bg-slate-50 transition-all disabled:opacity-30"
@@ -490,6 +497,7 @@ function RecruitmentCard({
                 startTransition(async () => {
                   const r = await payRecruitmentRewardAction(row.id, payRef.trim())
                   if (r.ok === false) window.alert(r.error)
+                  router.refresh()
                   setPayOpen(false)
                 })
               }
@@ -519,6 +527,7 @@ function RecruitmentCard({
                 startTransition(async () => {
                   const r = await rejectRecruitmentRewardAction(row.id, rejectReason.trim())
                   if (r.ok === false) window.alert(r.error)
+                  router.refresh()
                   setRejectOpen(false)
                 })
               }

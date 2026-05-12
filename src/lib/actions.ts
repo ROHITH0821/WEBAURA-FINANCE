@@ -3,6 +3,7 @@
 import { revalidateTag } from 'next/cache'
 
 import { createStaticClient } from '@/lib/supabaseServer'
+import { redirect } from 'next/navigation'
 import { requireActiveAdmin, requireSuperAdmin } from '@/lib/admin-gates'
 
 const revalidate = (tag: string) => (revalidateTag as any)(tag)
@@ -68,7 +69,7 @@ export async function createProject(formData: any) {
   }
 
   await refreshFinanceData()
-  return { ok: true, data }
+  redirect(`/projects/${data.id}`)
 }
 
 export async function createExpense(formData: any) {
@@ -113,7 +114,7 @@ export async function createExpense(formData: any) {
   })
 
   await refreshFinanceData()
-  return { ok: true, data }
+  redirect('/expenses')
 }
 
 export async function approveExpense(expenseId: string, adminEmail?: string, paymentTransactionRef?: string) {

@@ -63,10 +63,7 @@ export default function NewProjectPage() {
     try {
       const res = await createProject(formData)
 
-      if (res.error) throw new Error(res.error)
-
-      router?.push('/projects')
-      router?.refresh()
+      if (res?.error) throw new Error(res.error)
     } catch (err: any) {
       setError(err.message || 'Failed to initialize project')
       setLoading(false)

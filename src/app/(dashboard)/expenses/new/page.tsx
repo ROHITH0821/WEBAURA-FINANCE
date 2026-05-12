@@ -40,10 +40,7 @@ export default function NewExpensePage() {
     try {
       const res = await createExpense(formData)
 
-      if (res.error) throw new Error(res.error)
-
-      router?.push('/expenses')
-      router?.refresh()
+      if (res?.error) throw new Error(res.error)
     } catch (err: any) {
       setError(err.message || 'Failed to request reimbursement')
       setLoading(false)
