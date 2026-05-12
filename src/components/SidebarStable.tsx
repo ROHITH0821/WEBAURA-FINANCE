@@ -62,32 +62,38 @@ export default function SidebarStable({ isSuperAdmin }: { isSuperAdmin: boolean 
           {filteredItems.map((item) => {
             const isActive =
               pathname === item.href ||
-              (item.href !== '/' && pathname.startsWith(item.href + '/'))
+              (item.href !== '/' && pathname.startsWith(item.href))
+
             return (
               <Link
                 key={item.href}
                 href={item.href}
                 className={cn(
-                  'flex items-center justify-between px-4 py-3 rounded-xl transition-all duration-200 group border-l-2',
+                  'flex items-center justify-between px-5 py-3.5 rounded-xl transition-all duration-300 group border-l-[3px]',
                   isActive
-                    ? 'bg-[#f7f7dc] text-slate-900 border-l-slate-900 shadow-md shadow-slate-100 ring-1 ring-slate-200'
-                    : 'text-slate-500 hover:text-slate-900 hover:bg-slate-50 border-l-transparent',
+                    ? 'bg-[#f7f7dc] text-slate-900 border-l-slate-900 shadow-[4px_4px_0px_0px_rgba(15,23,42,0.1)] ring-1 ring-slate-200 translate-x-1'
+                    : 'text-slate-500 hover:text-slate-900 hover:bg-slate-50 border-l-transparent hover:translate-x-1',
                 )}
               >
                 <div className="flex items-center gap-3">
                   {item.icon && typeof item.icon === 'function' ? (
                     <item.icon
                       className={cn(
-                        'w-4 h-4',
-                        isActive ? 'text-slate-900' : 'text-slate-400 group-hover:text-slate-900',
+                        'w-4 h-4 transition-transform duration-300',
+                        isActive ? 'text-slate-900 scale-110' : 'text-slate-400 group-hover:text-slate-900',
                       )}
                     />
                   ) : (
                     <div className="w-4 h-4 bg-slate-100 rounded-sm" />
                   )}
-                  <span className="text-[11px] font-black uppercase tracking-wider">{item.name}</span>
+                  <span className={cn(
+                    "text-[11px] font-black uppercase tracking-wider transition-colors duration-300",
+                    isActive ? "text-slate-900" : "text-slate-500 group-hover:text-slate-900"
+                  )}>
+                    {item.name}
+                  </span>
                 </div>
-                {isActive && <ChevronRight className="w-3 h-3 text-slate-900" />}
+                {isActive && <ChevronRight className="w-3.5 h-3.5 text-slate-900 animate-in slide-in-from-left-1" />}
               </Link>
             )
           })}
