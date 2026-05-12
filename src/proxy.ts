@@ -1,15 +1,15 @@
 import { type NextRequest } from 'next/server'
-import { proxy } from './auth-proxy'
+import { proxy as authProxy } from './auth-proxy'
 
 /**
- * Global Middleware for WebAura Finance
+ * Global Proxy for WebAura Finance (Replaces Middleware)
  * - Enforces 'finance' schema in Supabase context
  * - Refreshes Auth Sessions on every request
  * - Redirects unauthorized users to /login
  * - Prevents auth loops on production domains
  */
-export async function middleware(request: NextRequest) {
-  return await proxy(request)
+export async function proxy(request: NextRequest) {
+  return await authProxy(request)
 }
 
 export const config = {
