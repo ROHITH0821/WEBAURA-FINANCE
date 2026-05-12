@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server'
 import { createStaticClient } from '@/lib/supabaseServer'
+import bcrypt from 'bcryptjs'
 
 export async function POST(req: Request) {
   try {
@@ -19,7 +20,12 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: 'Session expired. Please request a new code.' }, { status: 400 })
     }
 
-    if (request.otp_secret !== otp) {
+    if (!request.otp_secret) {
+      return NextResponse.json({ error: 'No active access code found.' }, { status: 400 })
+    }
+
+    const isValid = await bcrypt.compare(otp, request.otp_secret)
+    if (!isValid) {
       return NextResponse.json({ error: 'Incorrect code.' }, { status: 400 })
     }
 
@@ -36,10 +42,12 @@ export async function POST(req: Request) {
     // Cleanup
     await supabase.from('finance_otp_requests').delete().eq('email', normalizedEmail)
 
-    // Return the action_link so the browser can "ping" it to log in
+    // Return the tokenHash so the browser can log in without a redirect
+    const props = authData.properties as any
     return NextResponse.json({ 
       ok: true, 
-      actionLink: authData.properties.action_link 
+      tokenHash: props.hashed_token || props.token_hash,
+      actionLink: props.action_link 
     })
   } catch (e: any) {
     return NextResponse.json({ error: 'Internal server error.' }, { status: 500 })

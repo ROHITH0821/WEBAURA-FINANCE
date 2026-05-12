@@ -42,21 +42,9 @@ export default function LoginPage() {
         return
       }
 
-      // 2. Trigger native Supabase OTP from the client
-      const supabase = createClient()
-      const { error: otpError } = await supabase.auth.signInWithOtp({
-        email: cleanEmail,
-        options: {
-          shouldCreateUser: false,
-        }
-      })
-
-      if (otpError) {
-        setError(otpError.message)
-        setLoading(false)
-        return
-      }
-
+      // 2. Trigger custom OTP from the server (handled in /api/auth/otp)
+      // No need to call supabase.auth.signInWithOtp here anymore
+      
       setStep('otp')
       setResendTimer(60)
     } catch (err) {
@@ -75,16 +63,35 @@ export default function LoginPage() {
       const supabase = createClient()
       const cleanEmail = email.trim().toLowerCase()
       
-      // 3. Verify the 6-digit code locally
-      const { error: verifyError } = await supabase.auth.verifyOtp({
-        email: cleanEmail,
-        token: otp,
-        type: 'email'
+      // 3. Verify the 6-digit code via our API
+      const verifyRes = await fetch('/api/auth/verify', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: cleanEmail, otp: otp.trim() })
       })
 
-      if (verifyError) {
-        setError(`Verification failed: ${verifyError.message}`)
+      const verifyData = await verifyRes.json()
+      if (!verifyRes.ok) {
+        setError(verifyData.error || 'Verification failed')
         setLoading(false)
+        return
+      }
+
+      // 4. Log in using the token hash (Redirect-less)
+      if (verifyData.tokenHash) {
+        const { error: loginError } = await supabase.auth.verifyOtp({
+          token_hash: verifyData.tokenHash,
+          type: 'magiclink'
+        })
+
+        if (loginError) {
+          setError(`Login failed: ${loginError.message}`)
+          setLoading(false)
+          return
+        }
+      } else if (verifyData.actionLink) {
+        // Fallback to action link if hash is not available
+        window.location.href = verifyData.actionLink
         return
       }
 

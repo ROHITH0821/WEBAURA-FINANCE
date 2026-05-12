@@ -1,17 +1,20 @@
 import { NextResponse } from 'next/server'
+import { sendResendOTP } from '@/lib/auth-actions'
 
 export async function POST(req: Request) {
   try {
     const { email } = await req.json()
-    const normalizedEmail = email.trim().toLowerCase()
-
-    // 1. ONLY check if the email is authorized
-    const authorizedEmails = (process.env.FOUNDER_EMAILS || '').split(',').map(e => e.trim().toLowerCase()).filter(Boolean)
-    if (!authorizedEmails.includes(normalizedEmail)) {
-      return NextResponse.json({ error: 'Access restricted to authorized personnel.' }, { status: 403 })
+    if (!email) {
+      return NextResponse.json({ error: 'Email is required' }, { status: 400 })
     }
 
-    // 2. Return OK - the client will now trigger the OTP itself
+    // Call the server action that handles auth check, OTP generation, DB storage, and Resend email
+    const result = await sendResendOTP(email)
+
+    if (result.error) {
+      return NextResponse.json({ error: result.error }, { status: 403 })
+    }
+
     return NextResponse.json({ ok: true })
   } catch (e: any) {
     return NextResponse.json({ error: `System error: ${e.message}` }, { status: 500 })

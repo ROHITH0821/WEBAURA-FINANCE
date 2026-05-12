@@ -24,23 +24,26 @@ export async function sendResendOTP(email: string) {
     .eq('email', normalizedEmail)
     .maybeSingle()
 
-  if (adminLookupErr && (adminLookupErr as any)?.code === '42P01') {
-    return { error: 'Missing DB table `admin_users`.' }
-  }
-
-  if (adminUser && adminUser.is_active === false) {
-    return { error: 'Access not authorized for this email.' }
+  if (adminLookupErr) {
+    if ((adminLookupErr as any)?.code === '42P01') {
+      return { error: 'Missing DB table admin_users.' }
+    }
+    return { error: `Database error: ${adminLookupErr.message}` }
   }
 
   // 2) Bootstrap allow-list
   const authorizedEmails = (process.env.FOUNDER_EMAILS || '').split(',').map(e => e.trim().toLowerCase()).filter(Boolean)
   const isBootstrapAuthorized = authorizedEmails.includes(normalizedEmail)
 
-  if (!adminUser && !isBootstrapAuthorized) {
+  if (adminUser && adminUser.is_active === false) {
     return { error: 'Access not authorized for this email.' }
   }
 
-  // Auto-provision
+  if (!adminUser && !isBootstrapAuthorized) {
+    return { error: 'Access restricted to authorized personnel.' }
+  }
+
+  // Auto-provision if authorized via bootstrap but no record exists
   if (!adminUser) {
     const isRohith = normalizedEmail === 'rapakarohith8@gmail.com'
     await supabase.from('admin_users').insert({
@@ -57,7 +60,7 @@ export async function sendResendOTP(email: string) {
   const expiresAt = new Date(Date.now() + 10 * 60 * 1000).toISOString()
 
   // 3. Store OTP in DB
-  await supabase.from('finance_otp_requests').upsert({
+  const { error: upsertErr } = await supabase.from('finance_otp_requests').upsert({
     email: normalizedEmail,
     otp_secret: otpHash,
     otp_expires_at: expiresAt,
@@ -65,36 +68,52 @@ export async function sendResendOTP(email: string) {
     updated_at: new Date().toISOString(),
   })
 
+  if (upsertErr) {
+    return { error: `Failed to initialize access code: ${upsertErr.message}` }
+  }
+
   // 4. Send Email via Resend
   try {
     const apiKey = process.env.RESEND_API_KEY
-    if (!apiKey) return { error: 'Email service configuration error.' }
+    if (!apiKey) {
+      return { error: 'Email service configuration error.' }
+    }
 
-    await fetch('https://api.resend.com/emails', {
+    const resendRes = await fetch('https://api.resend.com/emails', {
       method: 'POST',
       headers: {
         'Authorization': `Bearer ${apiKey}`,
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        from: 'WebAura Finance <info@webauraindia.com>',
+        from: `WebAura Finance <${process.env.RESEND_FROM_EMAIL || 'info@webauraindia.com'}>`,
         to: normalizedEmail,
         subject: `${otp} is your Finance Access Code`,
         html: `
           <div style="font-family: sans-serif; max-width: 600px; margin: 0 auto; border: 1px solid #eee; border-radius: 12px; padding: 40px; color: #1a2314;">
-            <h1 style="font-size: 24px; font-weight: 800; margin-bottom: 12px; text-transform: uppercase;">Finance Portal Access</h1>
-            <div style="background: #f7f7dc; padding: 32px; border-radius: 16px; text-align: center; margin-bottom: 32px; border: 1px solid #efefd0;">
-              <span style="font-family: ui-monospace, monospace; font-size: 32px; font-weight: 900; letter-spacing: 0.2em; color: #000;">${otp}</span>
+            <div style="margin-bottom: 32px; text-align: center;">
+              <img src="https://finance.webauraindia.com/webaura-mark-light.png" alt="WebAura" style="height: 48px; width: auto;" />
             </div>
-            <p style="font-size: 11px; color: #999; text-transform: uppercase; text-align: center;">Expires in 10 minutes</p>
+            <h1 style="font-size: 20px; font-weight: 800; margin-bottom: 24px; text-transform: uppercase; color: #000; text-align: center; letter-spacing: 0.05em;">Verification Code</h1>
+            <p style="font-size: 14px; color: #666; margin-bottom: 32px; text-align: center;">Use the following code to access the Finance Portal. This code will expire in 10 minutes.</p>
+            <div style="background: #f8fafc; padding: 40px; border-radius: 24px; text-align: center; margin-bottom: 32px; border: 1px solid #f1f5f9;">
+              <span style="font-family: ui-monospace, 'Cascadia Code', 'Source Code Pro', monospace; font-size: 48px; font-weight: 900; letter-spacing: 0.3em; color: #0f172a; margin-left: 0.3em;">${otp}</span>
+            </div>
+            <p style="font-size: 11px; color: #94a3b8; text-transform: uppercase; text-align: center; font-weight: 700; letter-spacing: 0.1em;">Secure Internal Access Only</p>
           </div>
         `
       }),
     })
 
+    const resendData = await resendRes.json()
+
+    if (!resendRes.ok) {
+      return { error: resendData.message || 'Failed to send verification code via Resend.' }
+    }
+
     return { ok: true }
   } catch (err: any) {
-    return { error: 'Failed to send verification code.' }
+    return { error: `Email service failure: ${err.message}` }
   }
 }
 
