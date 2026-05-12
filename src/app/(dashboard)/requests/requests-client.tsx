@@ -2,6 +2,7 @@
 
 import { useMemo, useState, useTransition } from 'react'
 import Link from 'next/link'
+import { useRouter } from 'next/navigation'
 import { CheckCircle2, Loader2, XCircle, ArrowLeftRight } from 'lucide-react'
 import { formatCurrency } from '@/lib/utils'
 import {
@@ -22,7 +23,7 @@ export default function RequestsClient(props: {
   pendingReferralLeadRewards: any[]
   pendingRecruitmentRewards: any[]
 }) {
-  const router = navigation.useRouter()
+  const router = useRouter()
   const [tab, setTab] = useState<'expenses' | 'referrals' | 'recruitment'>('expenses')
   const [pending, startTransition] = useTransition()
 
