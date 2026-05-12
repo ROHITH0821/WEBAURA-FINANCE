@@ -154,6 +154,7 @@ function ExpenseCard({
   pending: boolean
   startTransition: any
 }) {
+  const router = useRouter()
   const [payRef, setPayRef] = useState('')
   const [rejectReason, setRejectReason] = useState('')
   const [payOpen, setPayOpen] = useState(false)
@@ -287,6 +288,7 @@ function ReferralCard({
   pending: boolean
   startTransition: any
 }) {
+  const router = useRouter()
   const [payRef, setPayRef] = useState('')
   const [rejectReason, setRejectReason] = useState('')
   const [payOpen, setPayOpen] = useState(false)
@@ -424,6 +426,7 @@ function RecruitmentCard({
   pending: boolean
   startTransition: any
 }) {
+  const router = useRouter()
   const [payRef, setPayRef] = useState('')
   const [rejectReason, setRejectReason] = useState('')
   const [payOpen, setPayOpen] = useState(false)
