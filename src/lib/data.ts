@@ -149,10 +149,16 @@ export const getAuditLogs = unstable_cache(
 export const getExpenseRequests = unstable_cache(
   async () => {
     const supabase = createStaticClient()
-    const { data } = await supabase
+    const { data, error } = await supabase
       .from('expense_requests')
       .select('*')
       .order('request_date', { ascending: false })
+    
+    if (error) {
+      console.error('getExpenseRequests error:', error)
+      // Return empty array to prevent page crash, or throw to show error boundary
+      return []
+    }
     return data || []
   },
   ['expenses-list'],
