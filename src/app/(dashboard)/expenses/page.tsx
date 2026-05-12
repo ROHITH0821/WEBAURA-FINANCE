@@ -44,6 +44,7 @@ export default async function ExpensesPage({
   const statusParam = String(Array.isArray(sp.status) ? sp.status[0] : sp.status || 'paid')
   const founderParamRaw = String(Array.isArray(sp.founder) ? sp.founder[0] : sp.founder || '')
   const founderParam = founderParamRaw ? founderParamRaw.toLowerCase() : ''
+  const searchParam = String(Array.isArray(sp.q) ? sp.q[0] : sp.q || '').toLowerCase()
 
   const effectiveView = isAdmin ? (viewParam === 'all' ? 'all' : 'mine') : 'mine'
   const effectiveFounder =
@@ -53,9 +54,7 @@ export default async function ExpensesPage({
         ? founderParam
         : ''
 
-  const qParam = String(Array.isArray(sp.q) ? sp.q[0] : sp.q || '').toLowerCase()
-  
-  let filteredExpenses = expenses
+  const filteredExpenses = expenses
     .filter((e) => {
       const st = String(e.status || '').toLowerCase()
       if (statusParam === 'all') return true
@@ -67,15 +66,13 @@ export default async function ExpensesPage({
       if (effectiveFounder) return who === effectiveFounder
       return true
     })
-
-  if (qParam) {
-    filteredExpenses = filteredExpenses.filter(e => {
+    .filter((e) => {
+      if (!searchParam) return true
       const desc = String(e.spent_on || '').toLowerCase()
       const cat = String(e.category || '').toLowerCase()
-      const amt = String(e.amount || '')
-      return desc.includes(qParam) || cat.includes(qParam) || amt.includes(qParam)
+      const ref = String(e.transaction_ref || '').toLowerCase()
+      return desc.includes(searchParam) || cat.includes(searchParam) || ref.includes(searchParam)
     })
-  }
 
   const filtersActive =
     (isAdmin && effectiveView === 'all') ||
@@ -133,12 +130,7 @@ export default async function ExpensesPage({
 
       <div className="glass-card overflow-hidden bg-white">
         <div className="p-4 md:p-8 border-b border-slate-100 flex flex-col md:flex-row gap-4 md:gap-6 items-start md:items-center justify-between">
-          <div className="relative w-full md:w-96">
-            <SearchInput 
-              placeholder="Search expenses by description, category, amount..." 
-              defaultValue={qParam} 
-            />
-          </div>
+          <SearchInput placeholder="Filter expenses by description, category or ref..." />
           <div className="flex gap-4 w-full md:w-auto">
             <ExpensesFilters
               isSuperAdmin={isAdmin}

@@ -27,32 +27,28 @@ export default async function AuditPage({
   const focus = typeof sp.focus === 'string' ? sp.focus : ''
   const limitRaw = typeof sp.limit === 'string' ? sp.limit : ''
   const limit = Math.max(5, Math.min(500, Number(limitRaw || 25)))
-
-  const qParam = String(Array.isArray(sp.q) ? sp.q[0] : sp.q || '').toLowerCase()
+  const searchParam = String(Array.isArray(sp.q) ? sp.q[0] : sp.q || '').toLowerCase()
 
   // Use high-performance cached data
   const [
     { data: { user } },
     foundersData,
-    auditLogsRaw
+    auditLogsFull
   ] = await Promise.all([
     supabase.auth.getUser(),
     getFounders(),
     getAuditLogs()
   ])
 
-  let auditLogsFiltered = auditLogsRaw || []
-  if (qParam) {
-    auditLogsFiltered = auditLogsFiltered.filter(log => {
-      const by = String(log.action_by || '').toLowerCase()
-      const type = String(log.action_type || '').toLowerCase()
-      const rec = String(log.record_type || '').toLowerCase()
-      const rid = String(log.record_id || '').toLowerCase()
-      return by.includes(qParam) || type.includes(qParam) || rec.includes(qParam) || rid.includes(qParam)
-    })
-  }
+  const auditLogsRaw = (auditLogsFull || []).filter((log) => {
+    if (!searchParam) return true
+    const by = String(log.action_by || '').toLowerCase()
+    const type = String(log.record_type || '').toLowerCase()
+    const action = String(log.action_type || '').toLowerCase()
+    return by.includes(searchParam) || type.includes(searchParam) || action.includes(searchParam)
+  })
 
-  const auditLogs = auditLogsFiltered.slice(0, limit)
+  const auditLogs = auditLogsRaw.slice(0, limit)
 
   const foundersByEmail = new Map(
     (foundersData || [])
@@ -85,20 +81,20 @@ export default async function AuditPage({
       </div>
 
       <div className="glass-card overflow-hidden bg-white">
-        <div className="p-4 md:p-8 border-b border-slate-100 flex flex-col md:flex-row gap-4 items-start md:items-center justify-between bg-slate-50/30">
+        <div className="p-4 md:p-8 border-b border-slate-100 flex flex-col md:flex-row gap-4 md:gap-6 items-start md:items-center justify-between">
           <div className="flex items-center gap-3">
             <History className="w-4 h-4 md:w-5 h-5 text-slate-900" />
             <h3 className="text-sm md:text-base font-black text-slate-900 uppercase tracking-tight">Real-time Activity</h3>
           </div>
-          <div className="flex-1 max-w-md w-full">
-            <SearchInput placeholder="Filter by user, action, or record type..." defaultValue={qParam} />
+          <div className="flex flex-col md:flex-row items-center gap-4 w-full md:w-auto">
+            <SearchInput placeholder="Search logs by user or type..." />
+            <Link
+              href="/api/audit/export"
+              className="text-[9px] md:text-[10px] font-black uppercase tracking-[0.2em] text-slate-400 hover:text-slate-900 transition-colors shrink-0"
+            >
+              Download
+            </Link>
           </div>
-          <Link
-            href="/api/audit/export"
-            className="text-[9px] md:text-[10px] font-black uppercase tracking-[0.2em] text-slate-400 hover:text-slate-900 transition-colors"
-          >
-            Download
-          </Link>
         </div>
 
         <div className="divide-y divide-slate-50">

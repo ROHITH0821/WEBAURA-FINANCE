@@ -10,24 +10,22 @@ export default async function ProjectsPage({
   searchParams?: Promise<Record<string, string | string[] | undefined>> | Record<string, string | string[] | undefined>
 }) {
   const sp = (await searchParams) || {}
-  const qParam = String(Array.isArray(sp.q) ? sp.q[0] : sp.q || '').toLowerCase()
+  const searchParam = String(Array.isArray(sp.q) ? sp.q[0] : sp.q || '').toLowerCase()
 
   // Use high-performance cached data
-  const [projectsData, foundersData] = await Promise.all([
+  const [allProjects, foundersData] = await Promise.all([
     getProjectsArchive(),
     getFounders()
   ])
 
-  let projects = projectsData
-  if (qParam) {
-    projects = projects.filter(p => {
-      const code = String(p.project_code || '').toLowerCase()
-      const client = String(p.client_name || '').toLowerCase()
-      const name = String(p.project_name || '').toLowerCase()
-      const type = String(p.project_type || '').toLowerCase()
-      return code.includes(qParam) || client.includes(qParam) || name.includes(qParam) || type.includes(qParam)
-    })
-  }
+  const projects = allProjects.filter((p) => {
+    if (!searchParam) return true
+    const code = String(p.project_code || '').toLowerCase()
+    const name = String(p.project_name || '').toLowerCase()
+    const client = String(p.client_name || '').toLowerCase()
+    const type = String(p.project_type || '').toLowerCase()
+    return code.includes(searchParam) || name.includes(searchParam) || client.includes(searchParam) || type.includes(searchParam)
+  })
 
   const foundersByEmail = new Map(
     (foundersData || [])
@@ -55,12 +53,7 @@ export default async function ProjectsPage({
 
       <div className="glass-card overflow-hidden bg-white">
         <div className="p-4 md:p-8 border-b border-slate-100 flex flex-col md:flex-row gap-4 md:gap-6 items-start md:items-center justify-between">
-          <div className="relative w-full md:w-96">
-            <SearchInput 
-              placeholder="Search by code, client, project name..." 
-              defaultValue={qParam} 
-            />
-          </div>
+          <SearchInput placeholder="Search projects by code, name or client..." />
           <div className="flex gap-4 w-full md:w-auto">
             <button className="flex items-center justify-center gap-2 px-6 py-3 rounded-xl border border-slate-200 hover:bg-slate-50 transition-all text-[9px] md:text-[10px] font-black uppercase tracking-widest text-slate-500 w-full md:w-auto">
               <Filter className="w-4 h-4" />
