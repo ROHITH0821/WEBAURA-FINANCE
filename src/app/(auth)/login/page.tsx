@@ -96,7 +96,9 @@ export default function LoginPage() {
       }
 
       // Success!
-      window.location.href = '/'
+      const params = new URLSearchParams(window.location.search)
+      const next = params.get('next') || '/'
+      window.location.href = next
     } catch (err) {
       setError('An unexpected error occurred.')
       setLoading(false)

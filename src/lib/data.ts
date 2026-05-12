@@ -98,3 +98,116 @@ export const getProjectsArchive = unstable_cache(
   ['projects-archive'],
   { revalidate: 60, tags: ['projects'] }
 )
+
+// 5. Get Single Project Detail (Cached for 1 minute)
+export const getProjectDetail = unstable_cache(
+  async (id: string) => {
+    if (!id) return null
+    const supabase = createStaticClient()
+    const { data } = await supabase
+      .from('projects')
+      .select('*')
+      .eq('id', id)
+      .maybeSingle()
+    return data
+  },
+  ['project-detail'],
+  { revalidate: 60, tags: ['projects'] }
+)
+
+// 6. Get Project Payments (Cached for 30 seconds)
+export const getProjectPayments = unstable_cache(
+  async (projectId: string) => {
+    if (!projectId) return []
+    const supabase = createStaticClient()
+    const { data } = await supabase
+      .from('payments_received')
+      .select('*')
+      .eq('project_id', projectId)
+      .order('payment_date', { ascending: false })
+    return data || []
+  },
+  ['project-payments'],
+  { revalidate: 30, tags: ['projects', 'payments'] }
+)
+
+// 7. Get Full Audit Logs (Cached for 10 seconds)
+export const getAuditLogs = unstable_cache(
+  async () => {
+    const supabase = createStaticClient()
+    const { data } = await supabase
+      .from('finance_audit_log')
+      .select('*')
+      .order('created_at', { ascending: false })
+    return data || []
+  },
+  ['audit-full'],
+  { revalidate: 10, tags: ['audit'] }
+)
+
+// 8. Get Expense Requests (Cached for 30 seconds)
+export const getExpenseRequests = unstable_cache(
+  async () => {
+    const supabase = createStaticClient()
+    const { data } = await supabase
+      .from('expense_requests')
+      .select('*')
+      .order('request_date', { ascending: false })
+    return data || []
+  },
+  ['expenses-list'],
+  { revalidate: 30, tags: ['expenses'] }
+)
+
+// 9. Get Revenue Summary Data (Cached for 30 seconds)
+export const getRevenueData = unstable_cache(
+  async () => {
+    const supabase = createStaticClient()
+    const [founders, projects, payments, expenses] = await Promise.all([
+      supabase.from('admin_users').select('id, email, full_name'),
+      supabase.from('projects').select('id, project_lead'),
+      supabase.from('payments_received').select('amount, project_id'),
+      supabase.from('expense_requests').select('amount, requested_by, status')
+    ])
+    
+    return {
+      founders: founders.data || [],
+      projects: projects.data || [],
+      payments: payments.data || [],
+      expenses: expenses.data || []
+    }
+  },
+  ['revenue-full'],
+  { revalidate: 30, tags: ['finance-summary', 'payments', 'expenses'] }
+)
+
+// 10. Get Pending Requests (Cached for 30 seconds)
+export const getPendingRequestsData = unstable_cache(
+  async () => {
+    const admin = createStaticClient()
+    const [pendingExpenses, referralLeadRewards, recruitmentRewards] = await Promise.all([
+      admin.from('expense_requests').select('*').eq('status', 'pending').order('created_at', { ascending: false }),
+      admin.from('referral_leads').select('*').eq('stage', 'converted').in('reward_status', ['pending', 'approved']).order('created_at', { ascending: false }),
+      admin.from('recruitment_rewards').select('*').in('status', ['pending', 'approved']).order('created_at', { ascending: false }),
+    ])
+    
+    return {
+      pendingExpenses: pendingExpenses.data || [],
+      referralLeadRewards: referralLeadRewards.data || [],
+      recruitmentRewards: recruitmentRewards.data || []
+    }
+  },
+  ['pending-requests'],
+  { revalidate: 30, tags: ['expenses', 'referrals', 'recruitment'] }
+)
+
+// 11. Get Referrers (Cached for 5 minutes)
+export const getReferrers = unstable_cache(
+  async () => {
+    const admin = createStaticClient()
+    const { data } = await admin.from('referrers').select('id,name,email,upi_id')
+    return data || []
+  },
+  ['referrers-list'],
+  { revalidate: 300, tags: ['referrals'] }
+)

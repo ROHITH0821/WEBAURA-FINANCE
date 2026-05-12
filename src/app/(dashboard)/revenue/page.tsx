@@ -1,22 +1,11 @@
 import { Wallet, ArrowLeftRight, AlertCircle, Info } from 'lucide-react'
 import { formatCurrency } from '@/lib/utils'
-import { createClient } from '@/lib/supabaseServer'
+import { getRevenueData } from '@/lib/data'
 
 export default async function RevenuePage() {
-  const supabase = await createClient()
-
-  // Parallelize fetches
-  const [
-    { data: foundersData },
-    { data: projects },
-    { data: payments },
-    { data: expenses }
-  ] = await Promise.all([
-    supabase.from('admin_users').select('id, email, full_name'),
-    supabase.from('projects').select('id, project_lead'),
-    supabase.from('payments_received').select('amount, project_id'),
-    supabase.from('expense_requests').select('amount, requested_by, status')
-  ])
+  // Use high-performance cached data
+  const revenue = await getRevenueData()
+  const { founders: foundersData, projects, payments, expenses } = revenue
 
   const founders = (foundersData || [])
     .filter((f) => Boolean(f?.email))

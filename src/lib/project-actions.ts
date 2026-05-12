@@ -29,13 +29,26 @@ export async function updateProjectAction(projectId: string, patch: any): Promis
   // strip undefined
   for (const k of Object.keys(allowed)) if (allowed[k] === undefined) delete allowed[k]
 
-  const { error } = await supabase.from('projects').update(allowed).eq('id', projectId)
-  if (error) return { ok: false, error: error.message }
+  try {
+    const { error } = await supabase.from('projects').update(allowed).eq('id', projectId)
+    if (error) {
+      console.error('Update project error:', error)
+      return { ok: false, error: error.message }
+    }
 
-  revalidate('projects')
-  revalidate('finance-summary')
-  revalidate('audit')
-  return { ok: true }
+    try {
+      revalidate('projects')
+      revalidate('finance-summary')
+      revalidate('audit')
+    } catch (revalidateErr) {
+      console.warn('Revalidation warning:', revalidateErr)
+    }
+
+    return { ok: true }
+  } catch (err: any) {
+    console.error('CRITICAL ERROR in updateProjectAction:', err)
+    return { ok: false, error: err?.message || 'System error during update' }
+  }
 }
 
 export async function deleteProjectAction(projectId: string, confirmCode: string): Promise<ActionResult> {

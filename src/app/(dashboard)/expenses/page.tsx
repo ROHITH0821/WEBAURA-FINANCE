@@ -1,7 +1,8 @@
 import Link from 'next/link'
 import { Plus, Search, Filter, Receipt, Calendar, User, Tag } from 'lucide-react'
 import { formatCurrency } from '@/lib/utils'
-import { createClient, createStaticClient } from '@/lib/supabaseServer'
+import { createClient } from '@/lib/supabaseServer'
+import { getExpenseRequests, getFounders } from '@/lib/data'
 import ExpenseRow from '@/components/ExpenseRow'
 import ExpensesFilters from './expenses-filters'
 
@@ -14,21 +15,17 @@ export default async function ExpensesPage({
 }) {
   const sp = (await searchParams) || {}
   const supabase = await createClient()
-  const admin = createStaticClient()
   
-  // Fetch user, expenses, and founders in parallel
+  // Use high-performance cached data
   const [
     { data: { user } },
-    { data: expensesData, error: expensesErr },
-    { data: foundersData, error: foundersErr }
+    expenses,
+    foundersData
   ] = await Promise.all([
     supabase.auth.getUser(),
-    // Use admin client so paid items always appear (no RLS surprises)
-    admin.from('expense_requests').select('*').order('request_date', { ascending: false }),
-    admin.from('admin_users').select('email, full_name, role, is_active').eq('is_active', true)
+    getExpenseRequests(),
+    getFounders()
   ])
-
-  const expenses = expensesData || []
   const founders = (foundersData || [])
     .filter((f) => Boolean(f?.email))
     .map((f) => ({
@@ -87,13 +84,6 @@ export default async function ExpensesPage({
 
   return (
     <div className="space-y-6 md:space-y-10 animate-in slide-in-from-bottom-4 duration-700">
-      {(expensesErr || foundersErr) && (
-        <div className="rounded-2xl border border-rose-200 bg-rose-50 p-4 md:p-6 text-sm font-bold text-rose-900">
-          {expensesErr ? `Failed to load expenses: ${expensesErr.message}` : null}
-          {expensesErr && foundersErr ? <br /> : null}
-          {foundersErr ? `Failed to load founders: ${foundersErr.message}` : null}
-        </div>
-      )}
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-end gap-4">
         <div>
           <h2 className="text-2xl md:text-3xl font-black tracking-tight text-slate-900 mb-2 uppercase">Expense Tracker</h2>

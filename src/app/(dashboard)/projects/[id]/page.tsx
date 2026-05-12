@@ -8,6 +8,7 @@ import {
   AlertCircle,
 } from 'lucide-react'
 import { formatCurrency } from '@/lib/utils'
+import { getProjectDetail, getProjectPayments, getFounders } from '@/lib/data'
 
 export const dynamic = 'force-dynamic'
 
@@ -49,21 +50,19 @@ export default async function ProjectDetailPage({
   const id = String(resolved?.id || '')
 
   const supabase = await createClient()
-  const admin = createStaticClient()
-
   const {
     data: { user },
   } = await supabase.auth.getUser()
   const myEmail = String(user?.email || '').toLowerCase()
 
-  // Read via admin client so page never "randomly" fails under RLS.
-  const [{ data: project, error: projectErr }, { data: payments }, { data: founders }] = await Promise.all([
-    admin.from('projects').select('*').eq('id', id).maybeSingle() as any,
-    admin.from('payments_received').select('*').eq('project_id', id).order('payment_date', { ascending: false }) as any,
-    admin.from('admin_users').select('email, full_name, role, is_active') as any,
+  // Use cached data functions
+  const [project, payments, founders] = await Promise.all([
+    getProjectDetail(id),
+    getProjectPayments(id),
+    getFounders()
   ])
 
-  if (projectErr || !project) {
+  if (!project) {
     return (
       <div className="h-[60vh] flex flex-col items-center justify-center gap-4">
         <AlertCircle className="w-10 h-10 text-rose-500" />

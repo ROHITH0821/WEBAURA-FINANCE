@@ -1,13 +1,12 @@
 import { createClient } from '@/lib/supabaseServer'
-import { createStaticClient } from '@/lib/supabaseServer'
 import { formatCurrency } from '@/lib/utils'
+import { getFounders, getPendingRequestsData, getReferrers } from '@/lib/data'
 import RequestsClient from './requests-client'
 
 export const dynamic = 'force-dynamic'
 
 export default async function RequestsPage() {
   const supabase = await createClient()
-  const admin = createStaticClient()
 
   const {
     data: { user },
@@ -15,43 +14,21 @@ export default async function RequestsPage() {
 
   const myEmail = String(user?.email || '').toLowerCase()
 
-  const { data: meRow } = await admin
-    .from('admin_users')
-    .select('email, full_name, role, is_active')
-    .eq('email', myEmail)
-    .maybeSingle()
+  // Use high-performance cached data
+  const [founders, requestsData, referrers] = await Promise.all([
+    getFounders(),
+    getPendingRequestsData(),
+    getReferrers()
+  ])
 
+  const { pendingExpenses, referralLeadRewards, recruitmentRewards } = requestsData
+  const meRow = (founders || []).find(f => String(f.email || '').toLowerCase() === myEmail)
   const isSuperAdmin = Boolean(meRow?.role === 'super_admin')
-
-  const [{ data: pendingExpenses }, { data: referralLeadRewards }, { data: recruitmentRewards }] =
-    await Promise.all([
-      admin
-        .from('expense_requests')
-        .select('*')
-        .eq('status', 'pending')
-        .order('created_at', { ascending: false }),
-      admin
-        .from('referral_leads')
-        .select('id,lead_name,lead_email,referrer_id,stage,reward_status,project_value_inr,reward_amount_inr,created_at')
-        .eq('stage', 'converted')
-        .in('reward_status', ['pending', 'approved'])
-        .order('created_at', { ascending: false }),
-      admin
-        .from('recruitment_rewards')
-        .select('id,created_at,recruiter_id,recruit_id,trigger_lead_id,reward_type,reward_amount,status,is_locked,unlocked_at,notes,payout_transaction_ref,payout_paid_by,approved_at,paid_at')
-        .in('status', ['pending', 'approved'])
-        .order('created_at', { ascending: false }),
-    ])
 
   const expensesVisible = isSuperAdmin
     ? pendingExpenses || []
-    : (pendingExpenses || []).filter((r) => String(r.requested_by || '').toLowerCase() === myEmail)
+    : (pendingExpenses || []).filter((r: any) => String(r.requested_by || '').toLowerCase() === myEmail)
 
-  // Referrer lookups (only needed for super admin view)
-  const refIds = [...new Set((referralLeadRewards || []).map((r: any) => r.referrer_id).filter(Boolean))] as string[]
-  const { data: referrers } = refIds.length
-    ? await admin.from('referrers').select('id,name,email,upi_id').in('id', refIds)
-    : { data: [] as any[] }
   const refMap = new Map((referrers || []).map((r: any) => [String(r.id), r]))
 
   const referralRows = (referralLeadRewards || []).map((row: any) => {

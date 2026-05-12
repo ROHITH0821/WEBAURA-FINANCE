@@ -1,7 +1,7 @@
 import { ShieldCheck, History, User, Database, Info, AlertCircle } from 'lucide-react'
 import Link from 'next/link'
 import { createClient, createStaticClient } from '@/lib/supabaseServer'
-import { getFounders } from '@/lib/data'
+import { getFounders, getAuditLogs } from '@/lib/data'
 import { requireSuperAdmin } from '@/lib/admin-gates'
 
 export const dynamic = 'force-dynamic'
@@ -22,7 +22,6 @@ export default async function AuditPage({
   }
 
   const supabase = await createClient()
-  const admin = createStaticClient()
   const sp = await Promise.resolve(searchParams || {})
   const focus = typeof sp.focus === 'string' ? sp.focus : ''
   const limitRaw = typeof sp.limit === 'string' ? sp.limit : ''
@@ -31,17 +30,15 @@ export default async function AuditPage({
   // Use high-performance cached data
   const [
     { data: { user } },
-    foundersData
+    foundersData,
+    auditLogsFull
   ] = await Promise.all([
     supabase.auth.getUser(),
-    getFounders()
+    getFounders(),
+    getAuditLogs()
   ])
 
-  const { data: auditLogs } = await admin
-    .from('finance_audit_log')
-    .select('id,created_at,action_by,action_type,record_type,record_id')
-    .order('created_at', { ascending: false })
-    .limit(limit)
+  const auditLogs = (auditLogsFull || []).slice(0, limit)
 
   const foundersByEmail = new Map(
     (foundersData || [])

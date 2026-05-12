@@ -57,7 +57,9 @@ export async function proxy(request: NextRequest) {
 
   // 2. Protect all other routes
   if (!user) {
-    return NextResponse.redirect(new URL('/login', request.url))
+    const url = new URL('/login', request.url)
+    url.searchParams.set('next', pathname)
+    return NextResponse.redirect(url)
   }
 
   return response
