@@ -29,7 +29,7 @@ const navItems = [
   { name: 'Profile', href: '/profile', icon: User },
 ]
 
-export default function SidebarStable({ isSuperAdmin }: { isSuperAdmin: boolean }) {
+export default function SidebarStable({ isSuperAdmin, onClose }: { isSuperAdmin: boolean, onClose?: () => void }) {
   const pathname = typeof navigation.usePathname === 'function' ? navigation.usePathname() : '/'
   const filteredItems = useMemo(
     () => navItems.filter((i) => ((i as any).superAdmin ? isSuperAdmin : true)),
@@ -68,6 +68,7 @@ export default function SidebarStable({ isSuperAdmin }: { isSuperAdmin: boolean 
               <Link
                 key={item.href}
                 href={item.href}
+                onClick={onClose}
                 className={cn(
                   'flex items-center justify-between px-5 py-3.5 rounded-xl transition-all duration-300 group border-l-[3px]',
                   isActive

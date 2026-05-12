@@ -38,7 +38,7 @@ export default function DashboardLayoutClient({
           fixed inset-y-0 left-0 z-50 transform lg:relative lg:translate-x-0 transition-transform duration-300 ease-in-out
           ${isSidebarOpen ? 'translate-x-0' : '-translate-x-full'}
         `}>
-          <Sidebar isSuperAdmin={isSuperAdmin} />
+          <Sidebar isSuperAdmin={isSuperAdmin} onClose={() => setIsSidebarOpen(false)} />
           {/* Mobile Close Button */}
           <button 
             className="absolute top-4 right-4 p-2 lg:hidden text-slate-400 hover:text-slate-900"
