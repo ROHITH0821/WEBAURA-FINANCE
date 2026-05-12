@@ -8,6 +8,7 @@ alter table finance.expense_requests add column if not exists paid_at timestampt
 alter table finance.expense_requests add column if not exists approved_by text;
 alter table finance.expense_requests add column if not exists client_name_manual text;
 alter table finance.expense_requests add column if not exists receipt_url text;
+alter table finance.expense_requests add column if not exists transaction_ref text;
 alter table finance.expense_requests add column if not exists rejection_reason text;
 alter table finance.expense_requests add column if not exists payment_transaction_ref text;
 
