@@ -36,24 +36,39 @@ export async function recordPaymentAction(input: {
   if (!Number.isFinite(amount) || amount <= 0) return { ok: false, error: 'Amount must be greater than 0.' }
 
   const admin = createStaticClient()
-  const { error } = await admin.from('payments_received').insert({
-    project_id: projectId,
-    amount,
-    payment_date: paymentDate,
-    received_by: receivedBy,
-    payment_method: paymentMethod,
-    payment_stage: paymentStage,
-    transaction_ref: transactionRef,
-    notes: notes.length ? notes : null,
-    verified: false,
-    verified_by: null,
-  })
+  
+  try {
+    const { error } = await admin.from('payments_received').insert({
+      project_id: projectId,
+      amount,
+      payment_date: paymentDate,
+      received_by: receivedBy,
+      payment_method: paymentMethod,
+      payment_stage: paymentStage,
+      transaction_ref: transactionRef,
+      notes: notes.length ? notes : null,
+      verified: false,
+      verified_by: null,
+    })
 
-  if (error) return { ok: false, error: error.message }
+    if (error) {
+      console.error('Payment insertion error:', error)
+      return { ok: false, error: error.message }
+    }
 
-  revalidate('projects')
-  revalidate('finance-summary')
-  revalidate('audit')
-  return { ok: true }
+    // Attempt to revalidate tags, but don't let it block the success response if it fails
+    try {
+      revalidate('projects')
+      revalidate('finance-summary')
+      revalidate('audit')
+    } catch (revalidateErr) {
+      console.warn('Revalidation failed but payment was saved:', revalidateErr)
+    }
+
+    return { ok: true }
+  } catch (err: any) {
+    console.error('Record payment system error:', err)
+    return { ok: false, error: err?.message || 'Database connection timeout or system error' }
+  }
 }
 
