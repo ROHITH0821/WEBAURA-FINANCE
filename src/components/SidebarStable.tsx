@@ -2,7 +2,7 @@
 
 import Link from 'next/link'
 import Image from 'next/image'
-import * as navigation from 'next/navigation'
+import { usePathname } from 'next/navigation'
 import { useMemo } from 'react'
 import {
   LayoutDashboard,
@@ -30,7 +30,7 @@ const navItems = [
 ]
 
 export default function SidebarStable({ isSuperAdmin, onClose }: { isSuperAdmin: boolean, onClose?: () => void }) {
-  const pathname = typeof navigation.usePathname === 'function' ? navigation.usePathname() : '/'
+  const pathname = usePathname()
   const filteredItems = useMemo(
     () => navItems.filter((i) => ((i as any).superAdmin ? isSuperAdmin : true)),
     [isSuperAdmin],
@@ -77,15 +77,13 @@ export default function SidebarStable({ isSuperAdmin, onClose }: { isSuperAdmin:
                 )}
               >
                 <div className="flex items-center gap-3">
-                  {item.icon && typeof item.icon === 'function' ? (
+                  {item.icon && (
                     <item.icon
                       className={cn(
                         'w-4 h-4 transition-transform duration-300',
                         isActive ? 'text-slate-900 scale-110' : 'text-slate-400 group-hover:text-slate-900',
                       )}
                     />
-                  ) : (
-                    <div className="w-4 h-4 bg-slate-100 rounded-sm" />
                   )}
                   <span className={cn(
                     "text-[11px] font-black uppercase tracking-wider transition-colors duration-300",
@@ -118,4 +116,3 @@ export default function SidebarStable({ isSuperAdmin, onClose }: { isSuperAdmin:
     </aside>
   )
 }
-
