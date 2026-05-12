@@ -1,5 +1,5 @@
 import { type NextRequest } from 'next/server'
-import { proxy } from './proxy'
+import { proxy } from './auth-proxy'
 
 /**
  * Global Middleware for WebAura Finance
