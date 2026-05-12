@@ -6,6 +6,7 @@ alter table finance.projects add column if not exists total_expenses integer not
 alter table finance.expense_requests add column if not exists approved_at timestamptz;
 alter table finance.expense_requests add column if not exists paid_at timestamptz;
 alter table finance.expense_requests add column if not exists approved_by text;
+alter table finance.expense_requests add column if not exists client_name_manual text;
 alter table finance.expense_requests add column if not exists rejection_reason text;
 alter table finance.expense_requests add column if not exists payment_transaction_ref text;
 
