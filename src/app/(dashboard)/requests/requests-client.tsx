@@ -342,7 +342,7 @@ function ReferralCard({
             startTransition(async () => {
               const r = await approveReferralLeadRewardAction(row.id)
               if (r.ok === false) window.alert(r.error)
-              router.refresh()
+              router?.refresh()
             })
           }
           className="px-5 py-3 rounded-xl border border-slate-200 text-slate-700 text-[10px] font-black uppercase tracking-widest hover:bg-slate-50 transition-all disabled:opacity-30"
@@ -471,7 +471,7 @@ function RecruitmentCard({
             startTransition(async () => {
               const r = await approveRecruitmentRewardAction(row.id)
               if (r.ok === false) window.alert(r.error)
-              router.refresh()
+              router?.refresh()
             })
           }
           className="px-5 py-3 rounded-xl border border-slate-200 text-slate-700 text-[10px] font-black uppercase tracking-widest hover:bg-slate-50 transition-all disabled:opacity-30"
