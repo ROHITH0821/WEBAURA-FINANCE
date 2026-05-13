@@ -111,7 +111,6 @@ export default function RequestsClient(props: {
             </Link>
           </div>
         </div>
-        </div>
       ) : (
         <div className="grid gap-4 md:gap-6">
           {tab === 'expenses' && (
