@@ -2,10 +2,17 @@ import { createClient } from '@/lib/supabaseServer'
 import { formatCurrency } from '@/lib/utils'
 import { getFounders, getPendingRequestsData, getReferrers } from '@/lib/data'
 import RequestsClient from './requests-client'
+import SearchInput from '@/components/SearchInput'
 
 export const dynamic = 'force-dynamic'
 
-export default async function RequestsPage() {
+export default async function RequestsPage({
+  searchParams,
+}: {
+  searchParams?: Promise<Record<string, string | string[] | undefined>> | Record<string, string | string[] | undefined>
+}) {
+  const sp = (await searchParams) || {}
+  const searchParam = String(Array.isArray(sp.q) ? sp.q[0] : sp.q || '').toLowerCase()
   const supabase = await createClient()
 
   const {
@@ -23,11 +30,17 @@ export default async function RequestsPage() {
 
   const { pendingExpenses, referralLeadRewards, recruitmentRewards } = requestsData
   const meRow = (founders || []).find(f => String(f.email || '').toLowerCase() === myEmail)
-  const isSuperAdmin = Boolean(meRow?.role === 'super_admin')
+  const isAdmin = Boolean(meRow?.is_active && (meRow?.role === 'super_admin' || meRow?.role === 'admin'))
 
-  const expensesVisible = isSuperAdmin
+  const filterFn = (item: any, fields: string[]) => {
+    if (!searchParam) return true
+    return fields.some(f => String(item[f] || '').toLowerCase().includes(searchParam))
+  }
+
+  const expensesVisible = (isAdmin
     ? pendingExpenses || []
     : (pendingExpenses || []).filter((r: any) => String(r.requested_by || '').toLowerCase() === myEmail)
+  ).filter(e => filterFn(e, ['spent_on', 'category', 'requested_by', 'transaction_ref']))
 
   const refMap = new Map((referrers || []).map((r: any) => [String(r.id), r]))
 
@@ -41,8 +54,11 @@ export default async function RequestsPage() {
     }
   })
 
-  const recruitmentVisible = isSuperAdmin ? recruitmentRewards || [] : []
-  const referralVisible = isSuperAdmin ? referralRows : []
+  const referralVisible = (isAdmin ? referralRows : [])
+    .filter(r => filterFn(r, ['referrer_name', 'referrer_email', 'lead_name']))
+
+  const recruitmentVisible = (isAdmin ? recruitmentRewards || [] : [])
+    .filter(r => filterFn(r, ['reward_type', 'status', 'candidate_name']))
 
   const totals = {
     pendingExpenseCount: expensesVisible.length,
@@ -60,20 +76,23 @@ export default async function RequestsPage() {
             Founder reimbursements and referral payouts in one queue
           </p>
         </div>
-        <div className="flex gap-3">
-          <div className="glass-card px-6 py-4 bg-white">
-            <p className="text-[9px] font-black uppercase tracking-widest text-slate-400 mb-1">Pending Expense ₹</p>
-            <p className="text-xl font-black tracking-tighter">{formatCurrency(totals.pendingExpenseAmount)}</p>
-          </div>
-          <div className="glass-card px-6 py-4 bg-white">
-            <p className="text-[9px] font-black uppercase tracking-widest text-slate-400 mb-1">Pending Referral ₹</p>
-            <p className="text-xl font-black tracking-tighter">{formatCurrency(totals.pendingReferralAmount)}</p>
+        <div className="flex items-center gap-6">
+          <SearchInput placeholder="Search requests..." />
+          <div className="flex gap-3">
+            <div className="glass-card px-6 py-4 bg-white">
+              <p className="text-[9px] font-black uppercase tracking-widest text-slate-400 mb-1">Pending Expense ₹</p>
+              <p className="text-xl font-black tracking-tighter">{formatCurrency(totals.pendingExpenseAmount)}</p>
+            </div>
+            <div className="glass-card px-6 py-4 bg-white">
+              <p className="text-[9px] font-black uppercase tracking-widest text-slate-400 mb-1">Pending Referral ₹</p>
+              <p className="text-xl font-black tracking-tighter">{formatCurrency(totals.pendingReferralAmount)}</p>
+            </div>
           </div>
         </div>
       </div>
 
       <RequestsClient
-        isSuperAdmin={isSuperAdmin}
+        isSuperAdmin={isAdmin}
         myEmail={myEmail}
         pendingExpenseRequests={expensesVisible}
         pendingReferralLeadRewards={referralVisible}

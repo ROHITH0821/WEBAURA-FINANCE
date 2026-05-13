@@ -2,7 +2,7 @@ import { ShieldCheck, History, User, Database, Info, AlertCircle } from 'lucide-
 import Link from 'next/link'
 import { createClient, createStaticClient } from '@/lib/supabaseServer'
 import { getFounders, getAuditLogs } from '@/lib/data'
-import { requireSuperAdmin } from '@/lib/admin-gates'
+import { requireAdmin } from '@/lib/admin-gates'
 import SearchInput from '@/components/SearchInput'
 
 export const dynamic = 'force-dynamic'
@@ -12,12 +12,12 @@ export default async function AuditPage({
 }: {
   searchParams?: Promise<Record<string, string | string[] | undefined>> | Record<string, string | string[] | undefined>
 }) {
-  const gate = await requireSuperAdmin()
+  const gate = await requireAdmin()
   if (!gate.ok) {
     return (
       <div className="glass-card bg-white p-12 text-center">
         <p className="text-[10px] font-black uppercase tracking-[0.3em] text-slate-400">Access denied</p>
-        <p className="mt-3 text-sm font-bold text-slate-700">Only super admin can view the audit ledger.</p>
+        <p className="mt-3 text-sm font-bold text-slate-700">Only administrators can view the audit ledger.</p>
       </div>
     )
   }
@@ -151,9 +151,22 @@ export default async function AuditPage({
               </div>
             ))
           ) : (
-            <div className="p-12 md:p-20 text-center">
-              <AlertCircle className="w-8 h-8 text-slate-200 mx-auto mb-4" />
-              <p className="text-[9px] md:text-[10px] font-black text-slate-400 uppercase tracking-widest">No activity recorded</p>
+            <div className="p-20 md:p-32 text-center">
+              <div className="flex flex-col items-center gap-4">
+                <div className="w-12 h-12 rounded-2xl bg-slate-50 flex items-center justify-center">
+                  <AlertCircle className="w-6 h-6 text-slate-200" />
+                </div>
+                <div>
+                  <p className="text-[10px] font-black text-slate-900 uppercase tracking-widest mb-1">
+                    {searchParam ? 'No matching activity' : 'No activity recorded'}
+                  </p>
+                  <p className="text-[9px] font-bold text-slate-400 uppercase tracking-widest">
+                    {searchParam 
+                      ? 'Try a different search term or action type' 
+                      : 'Financial mutations will be logged here'}
+                  </p>
+                </div>
+              </div>
             </div>
           )}
         </div>

@@ -35,61 +35,61 @@ export default async function ExpensesPage({
       role: String(f.role || ''),
     }))
 
-  const me = founders.find((f) => f.email.toLowerCase() === String(user?.email || '').toLowerCase())
-  const isAdmin = me?.role === 'super_admin'
   const myEmail = String(user?.email || '').toLowerCase()
+  const me = founders.find((f) => f.email.toLowerCase() === myEmail)
+  const isAdmin = me?.role === 'super_admin' || me?.role === 'admin'
 
-  const rawView = Array.isArray(sp.view) ? sp.view[0] : sp.view
-  const viewParam = String(rawView || (isAdmin ? 'all' : 'mine'))
+  const rawView = sp.view
+  const viewParam = String((Array.isArray(rawView) ? rawView[0] : rawView) || (isAdmin ? 'all' : 'mine'))
   const statusParam = String(Array.isArray(sp.status) ? sp.status[0] : sp.status || 'paid')
-  const founderParamRaw = String(Array.isArray(sp.founder) ? sp.founder[0] : sp.founder || '')
-  const founderParam = founderParamRaw ? founderParamRaw.toLowerCase() : ''
+  const founderParam = String(Array.isArray(sp.founder) ? sp.founder[0] : sp.founder || '').toLowerCase()
   const searchParam = String(Array.isArray(sp.q) ? sp.q[0] : sp.q || '').toLowerCase()
 
   const effectiveView = isAdmin ? (viewParam === 'all' ? 'all' : 'mine') : 'mine'
-  const effectiveFounder =
-    effectiveView === 'mine'
-      ? myEmail
-      : founderParam && founders.some((f) => f.email.toLowerCase() === founderParam)
-        ? founderParam
-        : ''
+  const effectiveFounder = (effectiveView === 'all' && founderParam) ? founderParam : (effectiveView === 'mine' ? myEmail : '')
 
-  const filteredExpenses = expenses
-    .filter((e) => {
-      const st = String(e.status || '').toLowerCase()
-      if (statusParam === 'all') return true
-      return st === statusParam
-    })
-    .filter((e) => {
-      const who = String(e.requested_by || '').toLowerCase()
-      if (effectiveView === 'mine') return who === myEmail
-      if (effectiveFounder) return who === effectiveFounder
-      return true
-    })
-    .filter((e) => {
-      if (!searchParam) return true
-      const desc = String(e.spent_on || '').toLowerCase()
-      const cat = String(e.category || '').toLowerCase()
-      const ref = String(e.transaction_ref || '').toLowerCase()
-      return desc.includes(searchParam) || cat.includes(searchParam) || ref.includes(searchParam)
-    })
+  const filteredExpenses = expenses.filter((e) => {
+    const st = String(e.status || '').toLowerCase()
+    const who = String(e.requested_by || '').toLowerCase()
+    const desc = String(e.spent_on || '').toLowerCase()
+    const cat = String(e.category || '').toLowerCase()
+    const ref = String(e.transaction_ref || '').toLowerCase()
 
-  const filtersActive =
-    (isAdmin && effectiveView === 'all') ||
-    statusParam !== 'paid' ||
-    Boolean(effectiveFounder) ||
-    Boolean(sp.view) ||
-    Boolean(sp.status) ||
-    Boolean(sp.founder)
+    // 1. Status Filter
+    if (statusParam !== 'all' && st !== statusParam) return false
 
-  // Stats calculations
-  const monthlyTotal = filteredExpenses
+    // 2. View/Founder Filter
+    if (effectiveView === 'mine') {
+      if (who !== myEmail) return false
+    } else if (effectiveFounder) {
+      if (who !== effectiveFounder) return false
+    }
+
+    // 3. Search Filter
+    if (searchParam) {
+      const match = desc.includes(searchParam) || cat.includes(searchParam) || ref.includes(searchParam) || who.includes(searchParam)
+      if (!match) return false
+    }
+
+    return true
+  })
+
+  // Stats - using the full expenses list but filtered by base permissions for "ledger" feel
+  const baseLedger = isAdmin ? expenses : expenses.filter(e => String(e.requested_by || '').toLowerCase() === myEmail)
+  const totalPaid = baseLedger
     .filter((e) => String(e.status || '').toLowerCase() === 'paid')
     .reduce((sum, e) => sum + Number(e.amount), 0)
-  const personalSpending = filteredExpenses
+  
+  const filteredPaid = filteredExpenses
     .filter((e) => String(e.status || '').toLowerCase() === 'paid')
     .reduce((sum, e) => sum + Number(e.amount), 0)
-  const pendingRequests = filteredExpenses.filter((e) => String(e.status || '').toLowerCase() === 'pending').length
+
+  const pendingCount = filteredExpenses.filter((e) => String(e.status || '').toLowerCase() === 'pending').length
+
+  const isDefaultView = isAdmin 
+    ? (effectiveView === 'all' && statusParam === 'paid' && !founderParam) 
+    : (statusParam === 'paid')
+  const filtersActive = !isDefaultView || searchParam !== ''
 
   return (
     <div className="space-y-6 md:space-y-10 animate-in slide-in-from-bottom-4 duration-700">
@@ -98,9 +98,9 @@ export default async function ExpensesPage({
           <h2 className="text-2xl md:text-3xl font-black tracking-tight text-slate-900 mb-2 uppercase">Expense Tracker</h2>
           <p className="text-slate-500 font-black uppercase tracking-[0.2em] text-[9px] md:text-[10px]">Categorized expenditure & reimbursement logs</p>
         </div>
-        <Link 
+        <Link
           href="/expenses/new"
-          className="flex items-center gap-3 bg-slate-900 hover:bg-slate-800 text-white px-6 md:px-8 py-3 md:py-4 rounded-xl font-black transition-all shadow-xl shadow-slate-200 uppercase tracking-widest text-[9px] md:text-[10px] w-full sm:w-auto justify-center"
+          className="px-8 py-4 rounded-2xl bg-slate-900 text-white text-[10px] md:text-xs font-black uppercase tracking-widest hover:bg-slate-800 transition-all shadow-2xl shadow-slate-200 flex items-center gap-3"
         >
           <Plus className="w-4 h-4" />
           Add Expense
@@ -110,7 +110,7 @@ export default async function ExpensesPage({
       <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4 md:gap-8">
         <div className="glass-card p-6 md:p-8 border-l-4 border-slate-900">
           <p className="text-slate-400 text-[9px] md:text-[10px] font-black uppercase tracking-[0.2em] mb-1 md:mb-2">Total Ledger</p>
-          <h3 className="text-2xl md:text-3xl font-black text-slate-900 tracking-tight">{formatCurrency(monthlyTotal)}</h3>
+          <h3 className="text-2xl md:text-3xl font-black text-slate-900 tracking-tight">{formatCurrency(totalPaid)}</h3>
         </div>
         <div className="glass-card p-6 md:p-8 border-l-4 border-emerald-500">
           <p className="text-slate-400 text-[9px] md:text-[10px] font-black uppercase tracking-[0.2em] mb-1 md:mb-2">
@@ -120,27 +120,23 @@ export default async function ExpensesPage({
                 ? 'Founder Contribution'
                 : 'All Founders'}
           </p>
-          <h3 className="text-2xl md:text-3xl font-black text-slate-900 tracking-tight">{formatCurrency(personalSpending)}</h3>
+          <h3 className="text-2xl md:text-3xl font-black text-slate-900 tracking-tight">{formatCurrency(filteredPaid)}</h3>
         </div>
         <div className="glass-card p-6 md:p-8 border-l-4 border-amber-500 sm:col-span-2 md:col-span-1">
           <p className="text-slate-400 text-[9px] md:text-[10px] font-black uppercase tracking-[0.2em] mb-1 md:mb-2">Pending Requests</p>
-          <h3 className="text-2xl md:text-3xl font-black text-slate-900 tracking-tight">{pendingRequests} Pending</h3>
+          <h3 className="text-2xl md:text-3xl font-black text-slate-900 tracking-tight">{pendingCount} Pending</h3>
         </div>
       </div>
 
       <div className="glass-card overflow-hidden bg-white">
-        <div className="p-4 md:p-8 border-b border-slate-100 flex flex-col md:flex-row gap-4 md:gap-6 items-start md:items-center justify-between">
-          <SearchInput placeholder="Filter expenses by description, category or ref..." />
-          <div className="flex gap-4 w-full md:w-auto">
-            <ExpensesFilters
-              isSuperAdmin={isAdmin}
-              founders={founders}
-              current={{
-                view: effectiveView,
-                status: statusParam,
-                founder: effectiveFounder || '',
-              }}
+        <div className="p-4 md:p-8 border-b border-slate-100 flex flex-col gap-6">
+          <div className="flex flex-col lg:flex-row justify-between items-start lg:items-end gap-6">
+            <ExpensesFilters 
+              isSuperAdmin={isAdmin} 
+              founders={founders} 
+              current={{ view: effectiveView as any, status: statusParam, founder: founderParam }} 
             />
+            <SearchInput placeholder="Filter expenses by description, category or ref..." />
           </div>
         </div>
 
@@ -168,10 +164,27 @@ export default async function ExpensesPage({
                 ))
               ) : (
                 <tr>
-                  <td colSpan={5} className="px-6 md:px-10 py-12 md:py-20 text-center">
-                    <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">
-                      {filtersActive ? 'No results for selected filters' : 'No expenses logged in ledger'}
-                    </p>
+                  <td colSpan={5} className="px-6 md:px-10 py-20 md:py-32 text-center">
+                    <div className="flex flex-col items-center gap-4">
+                      <div className="w-12 h-12 rounded-2xl bg-slate-50 flex items-center justify-center">
+                        <Filter className="w-6 h-6 text-slate-200" />
+                      </div>
+                      <div>
+                        <p className="text-[10px] font-black text-slate-900 uppercase tracking-widest mb-1">
+                          {filtersActive ? 'No matching results' : 'Empty Ledger'}
+                        </p>
+                        <p className="text-[9px] font-bold text-slate-400 uppercase tracking-widest">
+                          {filtersActive 
+                            ? 'Try adjusting your filters or search query' 
+                            : 'Expenses you add will appear here'}
+                        </p>
+                      </div>
+                      {filtersActive && (
+                        <Link href="/expenses" className="mt-2 text-[9px] font-black text-slate-900 uppercase border-b-2 border-slate-900 pb-0.5">
+                          Clear all filters
+                        </Link>
+                      )}
+                    </div>
                   </td>
                 </tr>
               )}

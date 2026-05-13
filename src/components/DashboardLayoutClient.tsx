@@ -2,7 +2,7 @@
 
 import { ReactNode, useState, useEffect } from 'react'
 import dynamic from 'next/dynamic'
-import { usePathname } from 'next/navigation'
+import * as navigation from 'next/navigation'
 import { Menu, X } from 'lucide-react'
 
 const Sidebar = dynamic(() => import('@/components/SidebarStable'), { ssr: false })
@@ -16,7 +16,7 @@ export default function DashboardLayoutClient({
   isSuperAdmin: boolean
 }) {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false)
-  const pathname = usePathname()
+  const pathname = typeof navigation.usePathname === 'function' ? navigation.usePathname() : ''
 
   // Close sidebar on navigation
   useEffect(() => {
@@ -49,16 +49,16 @@ export default function DashboardLayoutClient({
       </div>
 
       <div className="flex flex-col flex-1 overflow-hidden relative w-full">
-        <header className="sticky top-0 z-20 flex items-center bg-white border-b border-slate-200">
+        <header className="sticky top-0 z-20 flex items-center bg-white/80 backdrop-blur-xl border-b border-slate-100 h-20">
           {/* Hamburger Menu */}
           <button 
-            className="p-4 lg:hidden text-slate-500 hover:text-slate-900 transition-colors"
+            className="p-4 lg:hidden text-slate-500 hover:text-slate-900 transition-colors ml-2"
             onClick={() => setIsSidebarOpen(true)}
           >
             <Menu className="w-6 h-6" />
           </button>
           
-          <div className="flex-1">
+          <div className="flex-1 h-full">
             <Header />
           </div>
         </header>

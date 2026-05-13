@@ -13,7 +13,7 @@ interface TeamMember {
 }
 
 export default function TeamSettingsClient(props: { myEmail: string; members: TeamMember[] }) {
-  const router = navigation.useRouter()
+  const router = typeof navigation.useRouter === 'function' ? navigation.useRouter() : null
   const [pending, startTransition] = useTransition()
   const [email, setEmail] = useState('')
   const [name, setName] = useState('')
@@ -95,7 +95,7 @@ export default function TeamSettingsClient(props: { myEmail: string; members: Te
                         startTransition(async () => {
                           const r = await setTeamMemberActiveAction(m.email, false)
                           if (r.ok === false) window.alert(r.error)
-                          router.refresh()
+                          router?.refresh()
                         })
                       }
                       className="text-[10px] font-black uppercase tracking-[0.25em] text-rose-600 hover:text-rose-700 transition-colors"
@@ -125,7 +125,7 @@ export default function TeamSettingsClient(props: { myEmail: string; members: Te
                             startTransition(async () => {
                               const r = await setTeamMemberNameAction(m.email, editName.trim() || null)
                               if (r.ok === false) window.alert(r.error)
-                              router.refresh()
+                              router?.refresh()
                               setEditingEmail(null)
                               setEditName('')
                             })
@@ -171,7 +171,7 @@ export default function TeamSettingsClient(props: { myEmail: string; members: Te
                 startTransition(async () => {
                   const res = await addTeamMemberAction(email.trim(), name.trim() || null)
                   if (res.ok === false) window.alert(res.error)
-                  router.refresh()
+                  router?.refresh()
                   setEmail('')
                   setName('')
                 })

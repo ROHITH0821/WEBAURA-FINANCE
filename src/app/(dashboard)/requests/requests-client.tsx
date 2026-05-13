@@ -2,7 +2,7 @@
 
 import { useMemo, useState, useTransition } from 'react'
 import Link from 'next/link'
-import { useRouter } from 'next/navigation'
+import * as navigation from 'next/navigation'
 import { CheckCircle2, Loader2, XCircle, ArrowLeftRight } from 'lucide-react'
 import { formatCurrency } from '@/lib/utils'
 import {
@@ -23,7 +23,7 @@ export default function RequestsClient(props: {
   pendingReferralLeadRewards: any[]
   pendingRecruitmentRewards: any[]
 }) {
-  const router = useRouter()
+  const router = typeof navigation.useRouter === 'function' ? navigation.useRouter() : null
   const [tab, setTab] = useState<'expenses' | 'referrals' | 'recruitment'>('expenses')
   const [pending, startTransition] = useTransition()
 
@@ -91,13 +91,26 @@ export default function RequestsClient(props: {
       </div>
 
       {empty ? (
-        <div className="glass-card bg-white p-10 md:p-14 text-center">
-          <p className="text-[10px] font-black uppercase tracking-[0.3em] text-slate-400">No pending items</p>
-          {!props.isSuperAdmin && tab === 'expenses' && (
-            <p className="mt-3 text-[9px] md:text-[10px] font-black uppercase tracking-[0.2em] text-slate-400">
-              Create an expense request and it will appear here for approval.
-            </p>
-          )}
+        <div className="glass-card bg-white p-20 md:p-32 text-center">
+          <div className="flex flex-col items-center gap-4">
+            <div className="w-12 h-12 rounded-2xl bg-slate-50 flex items-center justify-center">
+              <CheckCircle2 className="w-6 h-6 text-slate-200" />
+            </div>
+            <div>
+              <p className="text-[10px] font-black text-slate-900 uppercase tracking-widest mb-1">
+                Nothing here
+              </p>
+              <p className="text-[9px] font-bold text-slate-400 uppercase tracking-widest">
+                {tab === 'expenses' ? 'All reimbursement requests processed' : 
+                 tab === 'referrals' ? 'No pending referral payouts' : 
+                 'No pending recruitment rewards'}
+              </p>
+            </div>
+            <Link href="/requests" className="mt-2 text-[9px] font-black text-slate-900 uppercase border-b-2 border-slate-900 pb-0.5">
+              Reset view
+            </Link>
+          </div>
+        </div>
         </div>
       ) : (
         <div className="grid gap-4 md:gap-6">
@@ -154,7 +167,7 @@ function ExpenseCard({
   pending: boolean
   startTransition: any
 }) {
-  const router = useRouter()
+  const router = typeof navigation.useRouter === 'function' ? navigation.useRouter() : null
   const [payRef, setPayRef] = useState('')
   const [rejectReason, setRejectReason] = useState('')
   const [payOpen, setPayOpen] = useState(false)
@@ -234,7 +247,7 @@ function ExpenseCard({
                 startTransition(async () => {
                   const r = await approveExpenseRequestAction(row.id, myEmail, payRef.trim())
                   if (r.ok === false) window.alert(r.error)
-                  router.refresh()
+                  router?.refresh()
                   setPayOpen(false)
                 })
               }
@@ -264,7 +277,7 @@ function ExpenseCard({
                 startTransition(async () => {
                   const r = await rejectExpenseRequestAction(row.id, myEmail, rejectReason.trim())
                   if (r.ok === false) window.alert(r.error)
-                  router.refresh()
+                  router?.refresh()
                   setRejectOpen(false)
                 })
               }
@@ -288,7 +301,7 @@ function ReferralCard({
   pending: boolean
   startTransition: any
 }) {
-  const router = useRouter()
+  const router = typeof navigation.useRouter === 'function' ? navigation.useRouter() : null
   const [payRef, setPayRef] = useState('')
   const [rejectReason, setRejectReason] = useState('')
   const [payOpen, setPayOpen] = useState(false)
@@ -372,7 +385,7 @@ function ReferralCard({
                 startTransition(async () => {
                   const r = await payReferralLeadRewardAction(row.id, payRef.trim())
                   if (r.ok === false) window.alert(r.error)
-                  router.refresh()
+                  router?.refresh()
                   setPayOpen(false)
                 })
               }
@@ -402,7 +415,7 @@ function ReferralCard({
                 startTransition(async () => {
                   const r = await rejectReferralLeadRewardAction(row.id, rejectReason.trim())
                   if (r.ok === false) window.alert(r.error)
-                  router.refresh()
+                  router?.refresh()
                   setRejectOpen(false)
                 })
               }
@@ -426,7 +439,7 @@ function RecruitmentCard({
   pending: boolean
   startTransition: any
 }) {
-  const router = useRouter()
+  const router = typeof navigation.useRouter === 'function' ? navigation.useRouter() : null
   const [payRef, setPayRef] = useState('')
   const [rejectReason, setRejectReason] = useState('')
   const [payOpen, setPayOpen] = useState(false)
@@ -501,7 +514,7 @@ function RecruitmentCard({
                 startTransition(async () => {
                   const r = await payRecruitmentRewardAction(row.id, payRef.trim())
                   if (r.ok === false) window.alert(r.error)
-                  router.refresh()
+                  router?.refresh()
                   setPayOpen(false)
                 })
               }
@@ -531,7 +544,7 @@ function RecruitmentCard({
                 startTransition(async () => {
                   const r = await rejectRecruitmentRewardAction(row.id, rejectReason.trim())
                   if (r.ok === false) window.alert(r.error)
-                  router.refresh()
+                  router?.refresh()
                   setRejectOpen(false)
                 })
               }

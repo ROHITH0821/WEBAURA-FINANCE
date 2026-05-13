@@ -1,5 +1,5 @@
 import Link from 'next/link'
-import { Plus, Filter, ExternalLink } from 'lucide-react'
+import { Plus, Filter, ExternalLink, Briefcase } from 'lucide-react'
 import { formatCurrency } from '@/lib/utils'
 import { getProjectsArchive, getFounders } from '@/lib/data'
 import SearchInput from '@/components/SearchInput'
@@ -134,8 +134,22 @@ export default async function ProjectsPage({
                 })
               ) : (
                 <tr>
-                  <td colSpan={7} className="px-6 md:px-10 py-12 md:py-20 text-center">
-                    <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">No projects initialized in archive</p>
+                  <td colSpan={7} className="px-6 md:px-10 py-20 md:py-32 text-center">
+                    <div className="flex flex-col items-center gap-4">
+                      <div className="w-12 h-12 rounded-2xl bg-slate-50 flex items-center justify-center">
+                        <Briefcase className="w-6 h-6 text-slate-200" />
+                      </div>
+                      <div>
+                        <p className="text-[10px] font-black text-slate-900 uppercase tracking-widest mb-1">
+                          {searchParam ? 'No matching projects' : 'Archive Empty'}
+                        </p>
+                        <p className="text-[9px] font-bold text-slate-400 uppercase tracking-widest">
+                          {searchParam 
+                            ? 'Try a different search term or code' 
+                            : 'Historical projects will appear here'}
+                        </p>
+                      </div>
+                    </div>
                   </td>
                 </tr>
               )}

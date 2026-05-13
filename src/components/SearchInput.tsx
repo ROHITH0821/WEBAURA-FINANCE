@@ -1,24 +1,25 @@
 'use client'
 
 import { Search } from 'lucide-react'
-import { useRouter, usePathname, useSearchParams } from 'next/navigation'
+import * as navigation from 'next/navigation'
 import { useEffect, useState } from 'react'
 
 export default function SearchInput({ placeholder = "Search...", param = "q" }: { placeholder?: string, param?: string }) {
-  const router = useRouter()
-  const pathname = usePathname()
-  const searchParams = useSearchParams()
-  const [value, setValue] = useState(searchParams.get(param) || '')
+  const router = typeof navigation.useRouter === 'function' ? navigation.useRouter() : null
+  const pathname = typeof navigation.usePathname === 'function' ? navigation.usePathname() : ''
+  const searchParams = typeof navigation.useSearchParams === 'function' ? navigation.useSearchParams() : new URLSearchParams()
+  const [value, setValue] = useState(searchParams?.get(param) || '')
 
   useEffect(() => {
     const timer = setTimeout(() => {
+      if (!searchParams) return
       const params = new URLSearchParams(searchParams.toString())
       if (value) {
         params.set(param, value)
       } else {
         params.delete(param)
       }
-      router.push(`${pathname}?${params.toString()}`)
+      router?.push(`${pathname}?${params.toString()}`)
     }, 400)
 
     return () => clearTimeout(timer)

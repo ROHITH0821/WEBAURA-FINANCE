@@ -12,10 +12,11 @@ export default async function DashboardLayout({ children }: { children: ReactNod
   const { data } = email
     ? await admin.from('admin_users').select('role,is_active').eq('email', email).maybeSingle()
     : { data: null as any }
+  const isAdmin = Boolean(data?.is_active && (data?.role === 'super_admin' || data?.role === 'admin'))
   const isSuperAdmin = Boolean(data?.is_active && data?.role === 'super_admin')
 
   return (
-    <DashboardLayoutClient isSuperAdmin={isSuperAdmin}>
+    <DashboardLayoutClient isSuperAdmin={isAdmin}>
       {children}
     </DashboardLayoutClient>
   )

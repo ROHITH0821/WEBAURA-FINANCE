@@ -5,6 +5,10 @@ const nextConfig: NextConfig = {
   experimental: {
     optimizePackageImports: ['lucide-react'],
   },
+  devIndicators: {
+    appIsrStatus: false,
+    buildActivity: false,
+  },
   async headers() {
     const allowedOrigins = [
       'https://www.webauraindia.com',
