@@ -38,7 +38,7 @@ export async function createClient() {
 
   return new Proxy(client, {
     get(target, prop) {
-      const value = target[prop];
+      const value = Reflect.get(target, prop);
       if (prop === 'from' && typeof value === 'function') {
         return (tableName: string) => {
           const schema = REFERRAL_TABLES.includes(tableName) ? 'referrals' : 'finance';
@@ -65,7 +65,7 @@ export function createStaticClient() {
 
   return new Proxy(client, {
     get(target, prop) {
-      const value = target[prop];
+      const value = Reflect.get(target, prop);
       if (prop === 'from' && typeof value === 'function') {
         return (tableName: string) => {
           const schema = REFERRAL_TABLES.includes(tableName) ? 'referrals' : 'finance';
