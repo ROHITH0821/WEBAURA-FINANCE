@@ -140,7 +140,7 @@ export default async function RequestsPage({
   })
 
   return (
-    <div className="space-y-6 md:space-y-10 animate-in slide-in-from-bottom-4 duration-700">
+    <div className="space-y-6 md:space-y-10 motion-safe:animate-in motion-safe:fade-in motion-safe:duration-200">
       <div className="flex flex-col gap-6 xl:flex-row xl:items-end xl:justify-between">
         <div className="min-w-0 flex-1 space-y-2">
           <h2 className="text-2xl sm:text-3xl font-black tracking-tight text-slate-900 uppercase">Requests</h2>

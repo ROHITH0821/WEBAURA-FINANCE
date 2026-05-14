@@ -5,7 +5,6 @@ import { createClient } from '@/lib/supabaseServer'
 import { getExpenseRequests, getFounders } from '@/lib/data'
 import ExpenseRow from '@/components/ExpenseRow'
 import ExpensesFilters from './expenses-filters'
-import SearchInput from '@/components/SearchInput'
 
 export const dynamic = 'force-dynamic'
 
@@ -93,7 +92,7 @@ export default async function ExpensesPage({
   const filtersActive = !isDefaultView || searchParam !== ''
 
   return (
-    <div className="space-y-6 md:space-y-10 animate-in slide-in-from-bottom-4 duration-700">
+    <div className="space-y-6 md:space-y-10 motion-safe:animate-in motion-safe:fade-in motion-safe:duration-200">
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-end gap-4">
         <div>
           <h2 className="text-2xl md:text-3xl font-black tracking-tight text-slate-900 mb-2 uppercase">Expense Tracker</h2>
@@ -131,14 +130,16 @@ export default async function ExpensesPage({
 
       <div className="glass-card overflow-hidden bg-white">
         <div className="p-4 md:p-8 border-b border-slate-100 flex flex-col gap-6">
-          <div className="flex flex-col lg:flex-row justify-between items-start lg:items-end gap-6">
-            <ExpensesFilters 
-              isSuperAdmin={isFinanceStaff} 
-              founders={founders} 
-              current={{ view: effectiveView as any, status: statusParam, founder: founderParam }} 
-            />
-            <SearchInput placeholder="Filter expenses by description, category or ref..." />
-          </div>
+          <ExpensesFilters
+            isSuperAdmin={isFinanceStaff}
+            founders={founders}
+            current={{
+              view: effectiveView as 'all' | 'mine',
+              status: statusParam,
+              founder: founderParam,
+              q: searchParam,
+            }}
+          />
         </div>
 
         <div className="overflow-x-auto scrollbar-hide">

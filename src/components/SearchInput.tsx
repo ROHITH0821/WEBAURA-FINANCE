@@ -2,38 +2,65 @@
 
 import { Search } from 'lucide-react'
 import * as navigation from 'next/navigation'
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 
-export default function SearchInput({ placeholder = "Search...", param = "q" }: { placeholder?: string, param?: string }) {
+export default function SearchInput({
+  placeholder = 'Search...',
+  param = 'q',
+}: {
+  placeholder?: string
+  param?: string
+}) {
   const router = typeof navigation.useRouter === 'function' ? navigation.useRouter() : null
   const pathname = typeof navigation.usePathname === 'function' ? navigation.usePathname() : ''
   const searchParams = typeof navigation.useSearchParams === 'function' ? navigation.useSearchParams() : new URLSearchParams()
-  const [value, setValue] = useState(searchParams?.get(param) || '')
+  const [value, setValue] = useState(() => searchParams?.get(param) || '')
+  const dirtyRef = useRef(false)
+  const spKey = searchParams?.toString() ?? ''
 
   useEffect(() => {
-    const timer = setTimeout(() => {
-      if (!searchParams) return
-      const params = new URLSearchParams(searchParams.toString())
-      if (value) {
-        params.set(param, value)
-      } else {
-        params.delete(param)
-      }
-      router?.push(`${pathname}?${params.toString()}`)
-    }, 400)
+    const fromUrl = new URLSearchParams(spKey).get(param) || ''
+    if (dirtyRef.current) return
+    setValue(fromUrl)
+  }, [spKey, param])
 
-    return () => clearTimeout(timer)
-  }, [value, param, pathname, router, searchParams])
+  useEffect(() => {
+    const trimmed = value.trim()
+    const inUrl = new URLSearchParams(spKey).get(param) || ''
+    if (trimmed === inUrl) {
+      dirtyRef.current = false
+      return
+    }
+    const timer = window.setTimeout(() => {
+      const qs =
+        typeof window !== 'undefined' ? window.location.search.slice(1) : spKey
+      const params = new URLSearchParams(qs)
+      if (trimmed) params.set(param, trimmed)
+      else params.delete(param)
+      const next = params.toString()
+      const href = next ? `${pathname}?${next}` : pathname
+      router?.replace(href, { scroll: false })
+      dirtyRef.current = false
+    }, 380)
+
+    return () => window.clearTimeout(timer)
+  }, [value, param, pathname, router, spKey])
 
   return (
-    <div className="relative w-full">
-      <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+    <div className="relative w-full min-w-0">
+      <Search className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
       <input
         type="text"
         value={value}
-        onChange={(e) => setValue(e.target.value)}
+        onChange={(e) => {
+          dirtyRef.current = true
+          setValue(e.target.value)
+        }}
+        onBlur={() => {
+          dirtyRef.current = false
+        }}
         placeholder={placeholder}
-        className="w-full bg-slate-50 border border-slate-200 rounded-xl py-3 pl-12 pr-4 text-xs outline-none focus:border-slate-900 transition-all font-medium"
+        className="box-border w-full min-w-0 rounded-xl border border-slate-200 bg-slate-50 py-3 pl-12 pr-4 text-xs font-medium outline-none transition-colors focus:border-slate-900"
       />
     </div>
   )

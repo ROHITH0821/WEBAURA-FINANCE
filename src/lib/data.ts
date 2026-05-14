@@ -150,21 +150,25 @@ export const getAuditLogs = unstable_cache(
   { revalidate: 10, tags: ['audit'] }
 )
 
-// 8. Expense ledger list — React `cache()` dedupes within one request (layout + page) but does not
-//    retain stale rows across navigations (unlike unstable_cache TTL), so approvals/submits reflect immediately.
-export const getExpenseRequests = cache(async () => {
-  const supabase = createStaticClient()
-  const { data, error } = await supabase
-    .from('expense_requests')
-    .select('*')
-    .order('request_date', { ascending: false })
+// 8. Expense ledger — `unstable_cache` speeds repeat navigations; tag `expenses` is revalidated on writes
+//    (see `revalidateRequestDomains` / expense actions). Same function backs layout + expenses page.
+export const getExpenseRequests = unstable_cache(
+  async () => {
+    const supabase = createStaticClient()
+    const { data, error } = await supabase
+      .from('expense_requests')
+      .select('*')
+      .order('request_date', { ascending: false })
 
-  if (error) {
-    console.error('getExpenseRequests error:', error)
-    return []
-  }
-  return data || []
-})
+    if (error) {
+      console.error('getExpenseRequests error:', error)
+      return []
+    }
+    return data || []
+  },
+  ['finance-expense-requests'],
+  { revalidate: 15, tags: ['expenses'] }
+)
 
 // 9. Get Revenue Summary Data (Cached for 30 seconds)
 export const getRevenueData = unstable_cache(
@@ -188,30 +192,29 @@ export const getRevenueData = unstable_cache(
   { revalidate: 30, tags: ['finance-summary', 'payments', 'expenses'] }
 )
 
-// 10. Requests hub (expenses + referral + recruitment queues) — per-request `cache()` only so super admins
-//    always see new submissions after redirect or router.refresh() without waiting on TTL invalidation.
-export const getRequestsData = cache(async () => {
-  const admin = createStaticClient()
-  const [expenses, referralLeadRewards, recruitmentRewards] = await Promise.all([
-    admin
-      .from('expense_requests')
-      .select('*')
-      .order('request_date', { ascending: false })
-      .order('id', { ascending: false }),
-    admin.from('referral_leads').select('*').eq('stage', 'converted').order('created_at', { ascending: false }),
-    admin.from('recruitment_rewards').select('*').order('created_at', { ascending: false }),
-  ])
+// 10. Requests hub — shares cached expense rows with `getExpenseRequests()` (single DB hit per cache window).
+//    Tags align with `revalidateRequestDomains` so approvals/submits still invalidate immediately.
+export const getRequestsData = unstable_cache(
+  async () => {
+    const admin = createStaticClient()
+    const [expenses, referralLeadRewards, recruitmentRewards] = await Promise.all([
+      getExpenseRequests(),
+      admin.from('referral_leads').select('*').eq('stage', 'converted').order('created_at', { ascending: false }),
+      admin.from('recruitment_rewards').select('*').order('created_at', { ascending: false }),
+    ])
 
-  if (expenses.error) console.error('DB Error (expenses):', JSON.stringify(expenses.error))
-  if (referralLeadRewards.error) console.error('DB Error (referrals):', JSON.stringify(referralLeadRewards.error))
-  if (recruitmentRewards.error) console.error('DB Error (recruitment):', JSON.stringify(recruitmentRewards.error))
+    if (referralLeadRewards.error) console.error('DB Error (referrals):', JSON.stringify(referralLeadRewards.error))
+    if (recruitmentRewards.error) console.error('DB Error (recruitment):', JSON.stringify(recruitmentRewards.error))
 
-  return {
-    expenses: expenses.data || [],
-    referralLeadRewards: referralLeadRewards.data || [],
-    recruitmentRewards: recruitmentRewards.data || [],
-  }
-})
+    return {
+      expenses,
+      referralLeadRewards: referralLeadRewards.data || [],
+      recruitmentRewards: recruitmentRewards.data || [],
+    }
+  },
+  ['finance-requests-data'],
+  { revalidate: 15, tags: ['expenses', 'referrals', 'recruitment'] }
+)
 
 // 11. Get Referrers (Cached for 5 minutes)
 export const getReferrers = unstable_cache(
