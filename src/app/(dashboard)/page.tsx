@@ -45,7 +45,7 @@ export default async function DashboardPage() {
     <div className="space-y-6 md:space-y-10 animate-in fade-in duration-700">
       {pendingExpenseApprovals > 0 && (
         <Link
-          href="/requests"
+          href="/requests#expenses"
           className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 rounded-2xl border border-amber-200 bg-amber-50 px-4 py-4 sm:px-6 text-amber-950 shadow-sm hover:border-amber-300 transition-colors"
         >
           <div className="flex items-start gap-3 min-w-0">

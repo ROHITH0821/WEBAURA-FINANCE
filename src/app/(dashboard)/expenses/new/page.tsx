@@ -1,15 +1,13 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import * as navigation from 'next/navigation'
+import { useRouter } from 'next/navigation'
 import { ArrowLeft, Save, IndianRupee, Calendar, User, Tag, FileText, Loader2 } from 'lucide-react'
 import { createClient } from '@/lib/supabase'
 import { createExpense } from '@/lib/actions'
 
-export const dynamic = 'force-dynamic'
-
 export default function NewExpensePage() {
-  const router = typeof navigation.useRouter === 'function' ? navigation.useRouter() : null
+  const router = useRouter()
 
   const [loading, setLoading] = useState(false)
   const [formData, setFormData] = useState({
@@ -42,7 +40,9 @@ export default function NewExpensePage() {
 
       if (res?.error) throw new Error(res.error)
     } catch (err: any) {
+      if (err?.digest?.includes?.('NEXT_REDIRECT')) throw err
       setError(err.message || 'Failed to request reimbursement')
+    } finally {
       setLoading(false)
     }
   }

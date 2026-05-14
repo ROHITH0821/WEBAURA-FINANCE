@@ -269,7 +269,7 @@ export default function RequestsClient(props: {
                 pending={pending}
                 startTransition={startTransition}
                 notify={setBanner}
-                onRejected={() => markRejectedDismissed('expense', r.id)}
+                onRemoveFromQueue={() => markRejectedDismissed('expense', r.id)}
               />
             ))}
 
@@ -311,7 +311,7 @@ function ExpenseCard({
   pending,
   startTransition,
   notify,
-  onRejected,
+  onRemoveFromQueue,
 }: {
   row: any
   /** Super admin only (matches server `approveExpenseRequestAction`). */
@@ -320,7 +320,8 @@ function ExpenseCard({
   pending: boolean
   startTransition: any
   notify: (msg: { type: 'success' | 'error'; text: string }) => void
-  onRejected?: () => void
+  /** Hide row until server props refresh (approve, reject, or pay). */
+  onRemoveFromQueue?: () => void
 }) {
   const router = typeof navigation.useRouter === 'function' ? navigation.useRouter() : null
   const [payRef, setPayRef] = useState('')
@@ -433,6 +434,7 @@ function ExpenseCard({
                     return
                   }
                   notify({ type: 'success', text: 'Expense marked as paid.' })
+                  onRemoveFromQueue?.()
                   router?.refresh()
                   setPayOpen(false)
                 })
@@ -466,7 +468,7 @@ function ExpenseCard({
                     notify({ type: 'error', text: r.error })
                     return
                   }
-                  onRejected?.()
+                  onRemoveFromQueue?.()
                   notify({ type: 'success', text: 'Request rejected.' })
                   router?.refresh()
                   setRejectOpen(false)

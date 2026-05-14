@@ -37,6 +37,7 @@ export async function refreshFinanceData() {
   revalidate('referrals')
   revalidate('recruitment')
   revalidatePath('/requests')
+  revalidatePath('/requests', 'page')
   revalidatePath('/expenses')
   revalidatePath('/')
   revalidatePath('/', 'layout')
@@ -83,21 +84,33 @@ export async function createExpense(formData: any) {
   const gate = await requireActiveAdmin()
   if (!gate.ok) return { error: gate.error }
   const supabase = createStaticClient()
-  
+
+  const amount = Number(formData.amount)
+  if (!Number.isFinite(amount) || amount <= 0) {
+    return { error: 'Amount must be a positive number.' }
+  }
+  const spentOn = String(formData.spent_on || '').trim()
+  if (!spentOn) {
+    return { error: 'Please describe what you spent on.' }
+  }
+  const proofRef = String(formData.transaction_ref || '').trim()
+  if (!proofRef) {
+    return { error: 'Proof / transaction reference is required.' }
+  }
+
   const isSuper = gate.role === 'super_admin'
-  const proofRef = String(formData.transaction_ref || '').trim() || null
   // Super admin: record straight to the paid ledger (same table as expenses UI). Admins/founders stay pending for super approval.
   // Always attribute to the signed-in user (client form cannot spoof).
   const { data, error } = await supabase
     .from('expense_requests')
     .insert({
       requested_by: gate.email,
-      amount: Number(formData.amount),
-      spent_on: formData.spent_on,
+      amount,
+      spent_on: spentOn,
       category: formData.category,
       project_id: formData.project_id || null,
       client_name_manual: formData.client_name_manual || null,
-      transaction_ref: formData.transaction_ref,
+      transaction_ref: proofRef,
       receipt_url: formData.receipt_url || null,
       request_date: formData.request_date || new Date().toISOString().slice(0, 10),
       status: isSuper ? 'paid' : 'pending',
@@ -158,6 +171,19 @@ export async function approveExpense(expenseId: string, adminEmail?: string, pay
   }
   if (!data) {
     return { error: 'Could not approve: request may have been updated by someone else. Refresh and try again.' }
+  }
+
+  const paidProjectId = (data as any).project_id as string | null | undefined
+  if (paidProjectId) {
+    const { data: rows, error: sumErr } = await supabase
+      .from('expense_requests')
+      .select('amount')
+      .eq('project_id', paidProjectId)
+      .eq('status', 'paid')
+    if (!sumErr) {
+      const nextTotal = (rows || []).reduce((s, r: any) => s + Number(r.amount || 0), 0)
+      await supabase.from('projects').update({ total_expenses: nextTotal }).eq('id', paidProjectId)
+    }
   }
 
   await logAudit({

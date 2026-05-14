@@ -37,9 +37,25 @@ function revalidateRequestDomains() {
   revalidate('audit')
   revalidate('projects')
   revalidatePath('/requests')
+  revalidatePath('/requests', 'page')
   revalidatePath('/expenses')
   revalidatePath('/')
   revalidatePath('/', 'layout')
+}
+
+async function syncProjectTotalPaidExpenses(supabase: ReturnType<typeof createStaticClient>, projectId: string | null | undefined) {
+  if (!projectId) return
+  const { data: rows, error } = await supabase
+    .from('expense_requests')
+    .select('amount')
+    .eq('project_id', projectId)
+    .eq('status', 'paid')
+  if (error) {
+    console.error('syncProjectTotalPaidExpenses:', error)
+    return
+  }
+  const nextTotal = (rows || []).reduce((s: number, r: any) => s + Number(r.amount || 0), 0)
+  await supabase.from('projects').update({ total_expenses: nextTotal }).eq('id', projectId)
 }
 
 export async function approveExpenseRequestAction(
@@ -75,6 +91,8 @@ export async function approveExpenseRequestAction(
   if (!data) {
     return { ok: false, error: 'Could not update: it may have been processed already. Refresh the page.' }
   }
+
+  await syncProjectTotalPaidExpenses(supabase, (data as any).project_id)
 
   await logAction({
     action_by: gate.email,
