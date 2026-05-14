@@ -1,6 +1,6 @@
 'use server'
 
-import { revalidateTag } from 'next/cache'
+import { revalidateTag, revalidatePath } from 'next/cache'
 
 import { createStaticClient } from '@/lib/supabaseServer'
 import { redirect } from 'next/navigation'
@@ -33,6 +33,13 @@ export async function refreshFinanceData() {
   revalidate('finance-summary')
   revalidate('projects')
   revalidate('audit')
+  revalidate('expenses')
+  revalidate('referrals')
+  revalidate('recruitment')
+  revalidatePath('/requests')
+  revalidatePath('/expenses')
+  revalidatePath('/')
+  revalidatePath('/', 'layout')
 }
 
 export async function refreshFounders() {
@@ -78,10 +85,13 @@ export async function createExpense(formData: any) {
   const supabase = createStaticClient()
   
   const isSuper = gate.role === 'super_admin'
+  const proofRef = String(formData.transaction_ref || '').trim() || null
+  // Super admin: record straight to the paid ledger (same table as expenses UI). Admins/founders stay pending for super approval.
+  // Always attribute to the signed-in user (client form cannot spoof).
   const { data, error } = await supabase
     .from('expense_requests')
     .insert({
-      requested_by: isSuper ? gate.email : formData.requested_by,
+      requested_by: gate.email,
       amount: Number(formData.amount),
       spent_on: formData.spent_on,
       category: formData.category,
@@ -94,6 +104,7 @@ export async function createExpense(formData: any) {
       approved_by: isSuper ? gate.email : null,
       approved_at: isSuper ? new Date().toISOString() : null,
       paid_at: isSuper ? new Date().toISOString() : null,
+      payment_transaction_ref: isSuper ? proofRef : null,
     })
     .select()
     .single()
@@ -114,7 +125,7 @@ export async function createExpense(formData: any) {
   })
 
   await refreshFinanceData()
-  redirect('/expenses')
+  redirect(isSuper ? '/expenses' : '/requests')
 }
 
 export async function approveExpense(expenseId: string, adminEmail?: string, paymentTransactionRef?: string) {
@@ -123,6 +134,10 @@ export async function approveExpense(expenseId: string, adminEmail?: string, pay
   const supabase = createStaticClient()
   
   const { data: before } = await supabase.from('expense_requests').select('*').eq('id', expenseId).maybeSingle()
+  if (!before || String((before as any).status || '').toLowerCase() !== 'pending') {
+    return { error: 'This request is not pending or was already processed.' }
+  }
+
   const { data, error } = await supabase
     .from('expense_requests')
     .update({ 
@@ -133,12 +148,16 @@ export async function approveExpense(expenseId: string, adminEmail?: string, pay
       payment_transaction_ref: paymentTransactionRef || null,
     })
     .eq('id', expenseId)
+    .eq('status', 'pending')
     .select()
-    .single()
+    .maybeSingle()
 
   if (error) {
     console.error('Approve Expense Error:', error)
     return { error: error.message }
+  }
+  if (!data) {
+    return { error: 'Could not approve: request may have been updated by someone else. Refresh and try again.' }
   }
 
   await logAudit({

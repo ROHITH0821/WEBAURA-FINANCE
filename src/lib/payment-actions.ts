@@ -68,6 +68,7 @@ export async function recordPaymentAction(input: {
     console.log('Payment inserted successfully. Revalidating tags...')
     try {
       revalidate('projects')
+      revalidate('payments')
       revalidate('finance-summary')
       revalidate('audit')
     } catch (revalidateErr) {

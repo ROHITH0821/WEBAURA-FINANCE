@@ -145,7 +145,7 @@ export default function NewExpensePage() {
                 />
               </div>
               <p className="text-[10px] text-slate-400 font-black uppercase tracking-widest">
-                Required so Rohith can verify before reimbursing.
+                Required so finance can verify before reimbursing.
               </p>
             </div>
           </div>

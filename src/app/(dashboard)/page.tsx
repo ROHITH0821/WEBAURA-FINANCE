@@ -1,22 +1,37 @@
-import { 
-  TrendingUp, 
-  TrendingDown, 
-  CreditCard, 
+import {
+  TrendingUp,
+  TrendingDown,
+  CreditCard,
   Users,
   Briefcase,
   ShieldCheck,
-  AlertCircle
+  AlertCircle,
+  Inbox,
 } from 'lucide-react'
 import Link from 'next/link'
 import { formatCurrency } from '@/lib/utils'
-import { getDashboardStats, getRecentAuditLogs } from '@/lib/data'
+import { getDashboardStats, getRecentAuditLogs, getPendingExpenseRequestCount } from '@/lib/data'
+import { createClient, createStaticClient } from '@/lib/supabaseServer'
+
+export const dynamic = 'force-dynamic'
 
 export default async function DashboardPage() {
-  // Use high-performance cached data
-  const [statsData, auditLogs] = await Promise.all([
-    getDashboardStats(),
-    getRecentAuditLogs()
-  ])
+  const supabase = await createClient()
+  const admin = createStaticClient()
+  const {
+    data: { user },
+  } = await supabase.auth.getUser()
+  const email = String(user?.email || '').trim().toLowerCase()
+
+  let pendingExpenseApprovals = 0
+  if (email) {
+    const { data: me } = await admin.from('admin_users').select('role,is_active').eq('email', email).maybeSingle()
+    if (me?.is_active && me.role === 'super_admin') {
+      pendingExpenseApprovals = await getPendingExpenseRequestCount()
+    }
+  }
+
+  const [statsData, auditLogs] = await Promise.all([getDashboardStats(), getRecentAuditLogs()])
 
   const stats = [
     { name: 'Total Revenue', value: statsData.totalRevenue, icon: TrendingUp, color: 'text-emerald-600', bg: 'bg-emerald-50' },
@@ -28,21 +43,47 @@ export default async function DashboardPage() {
 
   return (
     <div className="space-y-6 md:space-y-10 animate-in fade-in duration-700">
+      {pendingExpenseApprovals > 0 && (
+        <Link
+          href="/requests"
+          className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 rounded-2xl border border-amber-200 bg-amber-50 px-4 py-4 sm:px-6 text-amber-950 shadow-sm hover:border-amber-300 transition-colors"
+        >
+          <div className="flex items-start gap-3 min-w-0">
+            <Inbox className="w-5 h-5 shrink-0 mt-0.5 text-amber-700" aria-hidden />
+            <div className="min-w-0">
+              <p className="text-[10px] font-black uppercase tracking-[0.2em] text-amber-800">Action required</p>
+              <p className="text-sm font-bold text-amber-950 mt-1">
+                {pendingExpenseApprovals} expense request{pendingExpenseApprovals === 1 ? '' : 's'} awaiting approval
+              </p>
+            </div>
+          </div>
+          <span className="text-[10px] font-black uppercase tracking-widest text-amber-900 shrink-0 sm:self-center">
+            Review →
+          </span>
+        </Link>
+      )}
+
       <div>
         <h2 className="text-2xl md:text-3xl font-black tracking-tight text-slate-900 mb-2 uppercase">Financial Analytics</h2>
-        <p className="text-slate-500 font-black uppercase tracking-[0.2em] text-[9px] md:text-[10px]">Real-time Performance Metrics • Internal Ledger</p>
+        <p className="text-slate-500 font-black uppercase tracking-[0.2em] text-[9px] md:text-[10px]">
+          Live data from your finance ledger • figures cache briefly for speed
+        </p>
       </div>
 
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4 md:gap-6">
         {stats.map((stat) => (
           <div key={stat.name} className="glass-card p-6 md:p-8 group hover:border-slate-900 transition-all duration-300">
             <div className="flex justify-between items-start mb-4 md:mb-6">
-              <div className={`p-3 md:p-4 rounded-2xl ${stat.bg} ${stat.color} border border-transparent group-hover:border-current transition-all`}>
-                <stat.icon className="w-4 h-4 md:w-5 h-5" />
+              <div
+                className={`p-3 md:p-4 rounded-2xl ${stat.bg} ${stat.color} border border-transparent group-hover:border-current transition-all`}
+              >
+                <stat.icon className="w-4 h-4 md:w-5 md:h-5" />
               </div>
             </div>
             <div>
-              <p className="text-[9px] md:text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] mb-1 md:mb-2">{stat.name}</p>
+              <p className="text-[9px] md:text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] mb-1 md:mb-2">
+                {stat.name}
+              </p>
               <h3 className="text-2xl md:text-3xl font-black text-slate-900 tracking-tight">{formatCurrency(stat.value)}</h3>
             </div>
           </div>
@@ -103,22 +144,26 @@ export default async function DashboardPage() {
           <div className="absolute top-0 right-0 p-4 opacity-5">
             <ShieldCheck className="w-16 md:w-24 h-16 md:h-24 text-slate-900" />
           </div>
-          <h3 className="text-lg md:text-xl font-bold text-slate-900 mb-6 md:mb-8 uppercase tracking-tight relative z-10">Integrity Alerts</h3>
+          <h3 className="text-lg md:text-xl font-bold text-slate-900 mb-6 md:mb-8 uppercase tracking-tight relative z-10">
+            Integrity Alerts
+          </h3>
           <div className="space-y-4 md:space-y-6 relative z-10">
             {(auditLogs || []).length > 0 ? (
               auditLogs?.map((log) => (
                 <Link
                   key={log.id}
                   href={`/audit?focus=${encodeURIComponent(String(log.id))}`}
-                  className="flex items-center justify-between p-4 rounded-2xl bg-slate-50 border border-slate-100 hover:border-slate-900 transition-all group"
+                  className="flex items-center justify-between p-4 rounded-2xl bg-slate-50 border border-slate-100 hover:border-slate-900 transition-all group gap-3"
                 >
-                  <div>
-                    <p className="text-[10px] md:text-[11px] font-black text-slate-900 uppercase tracking-wider">{log.action_type}</p>
+                  <div className="min-w-0">
+                    <p className="text-[10px] md:text-[11px] font-black text-slate-900 uppercase tracking-wider truncate">
+                      {log.action_type}
+                    </p>
                     <p className="text-[9px] text-slate-400 font-bold uppercase mt-1">
                       {new Date(log.created_at).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })}
                     </p>
                   </div>
-                  <AlertCircle className="w-4 h-4 text-slate-300 group-hover:text-slate-900 transition-colors" />
+                  <AlertCircle className="w-4 h-4 text-slate-300 group-hover:text-slate-900 transition-colors shrink-0" />
                 </Link>
               ))
             ) : (

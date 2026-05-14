@@ -1,7 +1,8 @@
 'use server'
 
-import { revalidateTag } from 'next/cache'
+import { revalidatePath, revalidateTag } from 'next/cache'
 import { createStaticClient } from '@/lib/supabaseServer'
+import { requireSuperAdmin } from '@/lib/admin-gates'
 
 type ActionResult = { ok: true } | { ok: false; error: string }
 
@@ -28,29 +29,55 @@ async function logAction(params: {
   })
 }
 
-export async function approveExpenseRequestAction(expenseId: string, adminEmail: string, paymentTransactionRef: string): Promise<ActionResult> {
-  const supabase = createStaticClient()
+function revalidateRequestDomains() {
+  revalidate('finance-summary')
+  revalidate('expenses')
+  revalidate('referrals')
+  revalidate('recruitment')
+  revalidate('audit')
+  revalidate('projects')
+  revalidatePath('/requests')
+  revalidatePath('/expenses')
+  revalidatePath('/')
+  revalidatePath('/', 'layout')
+}
+
+export async function approveExpenseRequestAction(
+  expenseId: string,
+  _adminEmail: string,
+  paymentTransactionRef: string,
+): Promise<ActionResult> {
+  const gate = await requireSuperAdmin()
+  if (!gate.ok) return { ok: false, error: gate.error }
   if (!String(paymentTransactionRef || '').trim()) return { ok: false, error: 'Payment transaction reference is required.' }
 
-  const { data: before } = await supabase.from('expense_requests').select('*').eq('id', expenseId).single()
+  const supabase = createStaticClient()
+  const { data: before } = await supabase.from('expense_requests').select('*').eq('id', expenseId).maybeSingle()
+  if (!before || String((before as any).status || '').toLowerCase() !== 'pending') {
+    return { ok: false, error: 'This request is not pending or was already processed.' }
+  }
 
   const { data, error } = await supabase
     .from('expense_requests')
     .update({
       status: 'paid',
-      approved_by: adminEmail || null,
+      approved_by: gate.email,
       approved_at: new Date().toISOString(),
       paid_at: new Date().toISOString(),
       payment_transaction_ref: paymentTransactionRef.trim(),
     })
     .eq('id', expenseId)
+    .eq('status', 'pending')
     .select()
-    .single()
+    .maybeSingle()
 
   if (error) return { ok: false, error: error.message }
+  if (!data) {
+    return { ok: false, error: 'Could not update: it may have been processed already. Refresh the page.' }
+  }
 
   await logAction({
-    action_by: adminEmail,
+    action_by: gate.email,
     action_type: 'PAY',
     record_type: 'expense_requests',
     record_id: expenseId,
@@ -59,35 +86,42 @@ export async function approveExpenseRequestAction(expenseId: string, adminEmail:
     notes: `Paid with txn ${paymentTransactionRef.trim()}`,
   })
 
-  revalidate('finance-summary')
-  revalidate('projects')
-  revalidate('audit')
+  revalidateRequestDomains()
   return { ok: true }
 }
 
-export async function rejectExpenseRequestAction(expenseId: string, adminEmail: string, reason: string): Promise<ActionResult> {
-  const supabase = createStaticClient()
+export async function rejectExpenseRequestAction(expenseId: string, _adminEmail: string, reason: string): Promise<ActionResult> {
+  const gate = await requireSuperAdmin()
+  if (!gate.ok) return { ok: false, error: gate.error }
   const why = String(reason || '').trim()
   if (!why) return { ok: false, error: 'Rejection reason is required.' }
 
-  const { data: before } = await supabase.from('expense_requests').select('*').eq('id', expenseId).single()
+  const supabase = createStaticClient()
+  const { data: before } = await supabase.from('expense_requests').select('*').eq('id', expenseId).maybeSingle()
+  if (!before || String((before as any).status || '').toLowerCase() !== 'pending') {
+    return { ok: false, error: 'This request is not pending or was already processed.' }
+  }
 
   const { data, error } = await supabase
     .from('expense_requests')
     .update({
       status: 'rejected',
-      approved_by: adminEmail || null,
+      approved_by: gate.email,
       approved_at: new Date().toISOString(),
       rejection_reason: why,
     })
     .eq('id', expenseId)
+    .eq('status', 'pending')
     .select()
-    .single()
+    .maybeSingle()
 
   if (error) return { ok: false, error: error.message }
+  if (!data) {
+    return { ok: false, error: 'Could not reject: it may have been updated already. Refresh the page.' }
+  }
 
   await logAction({
-    action_by: adminEmail,
+    action_by: gate.email,
     action_type: 'REJECT',
     record_type: 'expense_requests',
     record_id: expenseId,
@@ -96,13 +130,16 @@ export async function rejectExpenseRequestAction(expenseId: string, adminEmail: 
     notes: why,
   })
 
-  revalidate('audit')
+  revalidateRequestDomains()
   return { ok: true }
 }
 
 export async function approveReferralLeadRewardAction(leadId: string): Promise<ActionResult> {
+  const gate = await requireSuperAdmin()
+  if (!gate.ok) return { ok: false, error: gate.error }
+
   const supabase = createStaticClient()
-  const { data: before } = await supabase.from('referral_leads').select('*').eq('id', leadId).single()
+  const { data: before } = await supabase.from('referral_leads').select('*').eq('id', leadId).maybeSingle()
 
   const { data, error } = await supabase
     .from('referral_leads')
@@ -114,7 +151,7 @@ export async function approveReferralLeadRewardAction(leadId: string): Promise<A
   if (error) return { ok: false, error: error.message }
 
   await logAction({
-    action_by: 'system',
+    action_by: gate.email,
     action_type: 'APPROVE',
     record_type: 'referral_leads',
     record_id: leadId,
@@ -122,15 +159,17 @@ export async function approveReferralLeadRewardAction(leadId: string): Promise<A
     new_value: data,
   })
 
-  revalidate('audit')
+  revalidateRequestDomains()
   return { ok: true }
 }
 
 export async function payReferralLeadRewardAction(leadId: string, paymentTransactionRef: string): Promise<ActionResult> {
-  const supabase = createStaticClient()
+  const gate = await requireSuperAdmin()
+  if (!gate.ok) return { ok: false, error: gate.error }
   if (!String(paymentTransactionRef || '').trim()) return { ok: false, error: 'Payment transaction reference is required.' }
 
-  const { data: before } = await supabase.from('referral_leads').select('*').eq('id', leadId).single()
+  const supabase = createStaticClient()
+  const { data: before } = await supabase.from('referral_leads').select('*').eq('id', leadId).maybeSingle()
 
   const { data, error } = await supabase
     .from('referral_leads')
@@ -146,7 +185,7 @@ export async function payReferralLeadRewardAction(leadId: string, paymentTransac
   if (error) return { ok: false, error: error.message }
 
   await logAction({
-    action_by: 'system',
+    action_by: gate.email,
     action_type: 'PAY',
     record_type: 'referral_leads',
     record_id: leadId,
@@ -155,16 +194,18 @@ export async function payReferralLeadRewardAction(leadId: string, paymentTransac
     notes: `Paid with txn ${paymentTransactionRef.trim()}`,
   })
 
-  revalidate('audit')
+  revalidateRequestDomains()
   return { ok: true }
 }
 
 export async function rejectReferralLeadRewardAction(leadId: string, reason: string): Promise<ActionResult> {
-  const supabase = createStaticClient()
+  const gate = await requireSuperAdmin()
+  if (!gate.ok) return { ok: false, error: gate.error }
   const why = String(reason || '').trim()
   if (!why) return { ok: false, error: 'Rejection reason is required.' }
 
-  const { data: before } = await supabase.from('referral_leads').select('*').eq('id', leadId).single()
+  const supabase = createStaticClient()
+  const { data: before } = await supabase.from('referral_leads').select('*').eq('id', leadId).maybeSingle()
 
   const { data, error } = await supabase
     .from('referral_leads')
@@ -176,7 +217,7 @@ export async function rejectReferralLeadRewardAction(leadId: string, reason: str
   if (error) return { ok: false, error: error.message }
 
   await logAction({
-    action_by: 'system',
+    action_by: gate.email,
     action_type: 'REJECT',
     record_type: 'referral_leads',
     record_id: leadId,
@@ -185,13 +226,16 @@ export async function rejectReferralLeadRewardAction(leadId: string, reason: str
     notes: why,
   })
 
-  revalidate('audit')
+  revalidateRequestDomains()
   return { ok: true }
 }
 
 export async function approveRecruitmentRewardAction(rewardId: string): Promise<ActionResult> {
+  const gate = await requireSuperAdmin()
+  if (!gate.ok) return { ok: false, error: gate.error }
+
   const supabase = createStaticClient()
-  const { data: before } = await supabase.from('recruitment_rewards').select('*').eq('id', rewardId).single()
+  const { data: before } = await supabase.from('recruitment_rewards').select('*').eq('id', rewardId).maybeSingle()
 
   const { data, error } = await supabase
     .from('recruitment_rewards')
@@ -203,7 +247,7 @@ export async function approveRecruitmentRewardAction(rewardId: string): Promise<
   if (error) return { ok: false, error: error.message }
 
   await logAction({
-    action_by: 'system',
+    action_by: gate.email,
     action_type: 'APPROVE',
     record_type: 'recruitment_rewards',
     record_id: rewardId,
@@ -211,15 +255,17 @@ export async function approveRecruitmentRewardAction(rewardId: string): Promise<
     new_value: data,
   })
 
-  revalidate('audit')
+  revalidateRequestDomains()
   return { ok: true }
 }
 
 export async function payRecruitmentRewardAction(rewardId: string, paymentTransactionRef: string): Promise<ActionResult> {
-  const supabase = createStaticClient()
+  const gate = await requireSuperAdmin()
+  if (!gate.ok) return { ok: false, error: gate.error }
   if (!String(paymentTransactionRef || '').trim()) return { ok: false, error: 'Payment transaction reference is required.' }
 
-  const { data: before } = await supabase.from('recruitment_rewards').select('*').eq('id', rewardId).single()
+  const supabase = createStaticClient()
+  const { data: before } = await supabase.from('recruitment_rewards').select('*').eq('id', rewardId).maybeSingle()
 
   const { data, error } = await supabase
     .from('recruitment_rewards')
@@ -235,7 +281,7 @@ export async function payRecruitmentRewardAction(rewardId: string, paymentTransa
   if (error) return { ok: false, error: error.message }
 
   await logAction({
-    action_by: 'system',
+    action_by: gate.email,
     action_type: 'PAY',
     record_type: 'recruitment_rewards',
     record_id: rewardId,
@@ -244,16 +290,18 @@ export async function payRecruitmentRewardAction(rewardId: string, paymentTransa
     notes: `Paid with txn ${paymentTransactionRef.trim()}`,
   })
 
-  revalidate('audit')
+  revalidateRequestDomains()
   return { ok: true }
 }
 
 export async function rejectRecruitmentRewardAction(rewardId: string, reason: string): Promise<ActionResult> {
-  const supabase = createStaticClient()
+  const gate = await requireSuperAdmin()
+  if (!gate.ok) return { ok: false, error: gate.error }
   const why = String(reason || '').trim()
   if (!why) return { ok: false, error: 'Rejection reason is required.' }
 
-  const { data: before } = await supabase.from('recruitment_rewards').select('*').eq('id', rewardId).single()
+  const supabase = createStaticClient()
+  const { data: before } = await supabase.from('recruitment_rewards').select('*').eq('id', rewardId).maybeSingle()
 
   const { data, error } = await supabase
     .from('recruitment_rewards')
@@ -265,7 +313,7 @@ export async function rejectRecruitmentRewardAction(rewardId: string, reason: st
   if (error) return { ok: false, error: error.message }
 
   await logAction({
-    action_by: 'system',
+    action_by: gate.email,
     action_type: 'REJECT',
     record_type: 'recruitment_rewards',
     record_id: rewardId,
@@ -274,7 +322,6 @@ export async function rejectRecruitmentRewardAction(rewardId: string, reason: st
     notes: why,
   })
 
-  revalidate('audit')
+  revalidateRequestDomains()
   return { ok: true }
 }
-

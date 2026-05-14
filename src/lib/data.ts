@@ -25,7 +25,7 @@ export const getFounders = unstable_cache(
     return data || []
   },
   ['founders-list'],
-  { revalidate: 3600, tags: ['founders'] }
+  { revalidate: 60, tags: ['founders'] }
 )
 
 // 2. Get Dashboard Stats (Cached for 30 seconds)
@@ -99,37 +99,41 @@ export const getProjectsArchive = unstable_cache(
   { revalidate: 60, tags: ['projects'] }
 )
 
-// 5. Get Single Project Detail (Cached for 1 minute)
-export const getProjectDetail = unstable_cache(
-  async (id: string) => {
-    if (!id) return null
-    const supabase = createStaticClient()
-    const { data } = await supabase
-      .from('projects')
-      .select('*')
-      .eq('id', id)
-      .maybeSingle()
-    return data
-  },
-  ['project-detail'],
-  { revalidate: 60, tags: ['projects'] }
-)
+// 5. Get Single Project Detail (Cached per id; key includes id so entries never collide)
+export function getProjectDetail(id: string) {
+  return unstable_cache(
+    async () => {
+      if (!id) return null
+      const supabase = createStaticClient()
+      const { data } = await supabase
+        .from('projects')
+        .select('*')
+        .eq('id', id)
+        .maybeSingle()
+      return data
+    },
+    ['project-detail', id],
+    { revalidate: 60, tags: ['projects'] }
+  )()
+}
 
-// 6. Get Project Payments (Cached for 30 seconds)
-export const getProjectPayments = unstable_cache(
-  async (projectId: string) => {
-    if (!projectId) return []
-    const supabase = createStaticClient()
-    const { data } = await supabase
-      .from('payments_received')
-      .select('*')
-      .eq('project_id', projectId)
-      .order('payment_date', { ascending: false })
-    return data || []
-  },
-  ['project-payments'],
-  { revalidate: 30, tags: ['projects', 'payments'] }
-)
+// 6. Get Project Payments (Cached per project; key includes projectId)
+export function getProjectPayments(projectId: string) {
+  return unstable_cache(
+    async () => {
+      if (!projectId) return []
+      const supabase = createStaticClient()
+      const { data } = await supabase
+        .from('payments_received')
+        .select('*')
+        .eq('project_id', projectId)
+        .order('payment_date', { ascending: false })
+      return data || []
+    },
+    ['project-payments', projectId],
+    { revalidate: 30, tags: ['projects', 'payments'] }
+  )()
+}
 
 // 7. Get Full Audit Logs (Cached for 10 seconds)
 export const getAuditLogs = unstable_cache(
@@ -187,24 +191,32 @@ export const getRevenueData = unstable_cache(
   { revalidate: 30, tags: ['finance-summary', 'payments', 'expenses'] }
 )
 
-// 10. Get Pending Requests (Cached for 30 seconds)
-export const getPendingRequestsData = unstable_cache(
+// 10. Get All Requests (Cached for 30 seconds)
+export const getRequestsData = unstable_cache(
   async () => {
     const admin = createStaticClient()
-    const [pendingExpenses, referralLeadRewards, recruitmentRewards] = await Promise.all([
-      admin.from('expense_requests').select('*').eq('status', 'pending').order('created_at', { ascending: false }),
-      admin.from('referral_leads').select('*').eq('stage', 'converted').in('reward_status', ['pending', 'approved']).order('created_at', { ascending: false }),
-      admin.from('recruitment_rewards').select('*').in('status', ['pending', 'approved']).order('created_at', { ascending: false }),
+    const [expenses, referralLeadRewards, recruitmentRewards] = await Promise.all([
+      admin
+        .from('expense_requests')
+        .select('*')
+        .order('request_date', { ascending: false })
+        .order('id', { ascending: false }),
+      admin.from('referral_leads').select('*').eq('stage', 'converted').order('created_at', { ascending: false }),
+      admin.from('recruitment_rewards').select('*').order('created_at', { ascending: false }),
     ])
     
+    if (expenses.error) console.error('DB Error (expenses):', JSON.stringify(expenses.error))
+    if (referralLeadRewards.error) console.error('DB Error (referrals):', JSON.stringify(referralLeadRewards.error))
+    if (recruitmentRewards.error) console.error('DB Error (recruitment):', JSON.stringify(recruitmentRewards.error))
+
     return {
-      pendingExpenses: pendingExpenses.data || [],
+      expenses: expenses.data || [],
       referralLeadRewards: referralLeadRewards.data || [],
       recruitmentRewards: recruitmentRewards.data || []
     }
   },
-  ['pending-requests'],
-  { revalidate: 30, tags: ['expenses', 'referrals', 'recruitment'] }
+  ['all-requests-data'],
+  { revalidate: 15, tags: ['expenses', 'referrals', 'recruitment'] }
 )
 
 // 11. Get Referrers (Cached for 5 minutes)
@@ -216,4 +228,22 @@ export const getReferrers = unstable_cache(
   },
   ['referrers-list'],
   { revalidate: 300, tags: ['referrals'] }
+)
+
+// 12. Pending expense requests (count only — same source as approval queue; invalidated via `expenses` tag)
+export const getPendingExpenseRequestCount = unstable_cache(
+  async () => {
+    const admin = createStaticClient()
+    const { count, error } = await admin
+      .from('expense_requests')
+      .select('id', { count: 'exact', head: true })
+      .eq('status', 'pending')
+    if (error) {
+      console.error('getPendingExpenseRequestCount:', error)
+      return 0
+    }
+    return count ?? 0
+  },
+  ['pending-expense-request-count'],
+  { revalidate: 15, tags: ['expenses'] }
 )

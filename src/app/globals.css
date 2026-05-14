@@ -71,7 +71,8 @@
    * Staff admin (/admin, /admin): public site @theme is strict monochrome — restore
    * standard Tailwind hues so the internal SaaS UI (slate surfaces, indigo actions, status colors) renders correctly.
    */
-  [data-admin-saas='true'] {
+  [data-admin-saas='true'],
+  [data-finance-app='true'] {
     color-scheme: light;
 
     --color-slate-50: #f8fafc;

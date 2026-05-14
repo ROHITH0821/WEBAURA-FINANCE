@@ -1,7 +1,6 @@
 'use client'
 
 import Link from 'next/link'
-import Image from 'next/image'
 import * as navigation from 'next/navigation'
 import { useMemo } from 'react'
 import {
@@ -17,6 +16,7 @@ import {
   ChevronRight,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
+import WebAuraFinanceBrand from '@/components/WebAuraFinanceBrand'
 
 const navItems = [
   { name: 'Summary', href: '/', icon: LayoutDashboard },
@@ -29,7 +29,15 @@ const navItems = [
   { name: 'Profile', href: '/profile', icon: User },
 ]
 
-export default function SidebarStable({ isSuperAdmin, onClose }: { isSuperAdmin: boolean, onClose?: () => void }) {
+export default function SidebarStable({
+  isSuperAdmin,
+  requestAttentionTotal = 0,
+  onClose,
+}: {
+  isSuperAdmin: boolean
+  requestAttentionTotal?: number
+  onClose?: () => void
+}) {
   const pathname = typeof navigation.usePathname === 'function' ? navigation.usePathname() : ''
   const filteredItems = useMemo(
     () => navItems.filter((i) => ((i as any).superAdmin ? isSuperAdmin : true)),
@@ -39,35 +47,24 @@ export default function SidebarStable({ isSuperAdmin, onClose }: { isSuperAdmin:
   return (
     <aside className="w-64 border-r border-slate-200 bg-white flex flex-col h-full z-20">
       <div className="p-8">
-        <div className="flex items-center gap-3 mb-10">
-          <div className="relative w-10 h-10 overflow-hidden">
-            <Image
-              src="/webaura-mark-light.png"
-              alt="WebAura"
-              fill
-              sizes="40px"
-              className="object-contain object-center"
-              priority
-              draggable={false}
-              unoptimized
-            />
-          </div>
-          <div>
-            <h1 className="font-black text-[10px] uppercase tracking-[0.2em] text-slate-900">WebAura</h1>
-            <p className="text-[7px] uppercase tracking-[0.4em] text-slate-400 font-black -mt-0.5">Finance</p>
-          </div>
+        <div className="mb-10">
+          <WebAuraFinanceBrand onNavigate={onClose} />
         </div>
 
         <nav className="space-y-1">
           {filteredItems.map((item) => {
+            const pathOnly = item.href.split('#')[0]
             const isActive =
-              pathname === item.href ||
-              (item.href !== '/' && pathname.startsWith(item.href))
+              pathname === pathOnly ||
+              (pathOnly !== '/' && pathname.startsWith(`${pathOnly}/`))
+
+            const linkHref =
+              item.href === '/requests' && requestAttentionTotal > 0 ? '/requests#expenses' : item.href
 
             return (
               <Link
                 key={item.href}
-                href={item.href}
+                href={linkHref}
                 onClick={onClose}
                 className={cn(
                   'flex items-center justify-between px-5 py-3.5 rounded-xl transition-all duration-300 group border-l-[3px]',
@@ -76,23 +73,36 @@ export default function SidebarStable({ isSuperAdmin, onClose }: { isSuperAdmin:
                     : 'text-slate-500 hover:text-slate-900 hover:bg-slate-50 border-l-transparent hover:translate-x-1',
                 )}
               >
-                <div className="flex items-center gap-3">
+                <div className="flex items-center gap-3 min-w-0">
                   {item.icon && (
                     <item.icon
                       className={cn(
-                        'w-4 h-4 transition-transform duration-300',
+                        'w-4 h-4 shrink-0 transition-transform duration-300',
                         isActive ? 'text-slate-900 scale-110' : 'text-slate-400 group-hover:text-slate-900',
                       )}
                     />
                   )}
-                  <span className={cn(
-                    "text-[11px] font-black uppercase tracking-wider transition-colors duration-300",
-                    isActive ? "text-slate-900" : "text-slate-500 group-hover:text-slate-900"
-                  )}>
+                  <span
+                    className={cn(
+                      'text-[11px] font-black uppercase tracking-wider transition-colors duration-300 truncate',
+                      isActive ? 'text-slate-900' : 'text-slate-500 group-hover:text-slate-900',
+                    )}
+                  >
                     {item.name}
                   </span>
+                  {item.href === '/requests' && requestAttentionTotal > 0 && (
+                    <span
+                      className={cn(
+                        'shrink-0 min-w-[1.25rem] h-5 px-1 flex items-center justify-center rounded-full text-[10px] font-black tabular-nums',
+                        isActive ? 'bg-slate-900 text-[#f7f7dc]' : 'bg-rose-500 text-white',
+                      )}
+                      aria-label={`${requestAttentionTotal} open requests`}
+                    >
+                      {requestAttentionTotal > 99 ? '99+' : requestAttentionTotal}
+                    </span>
+                  )}
                 </div>
-                {isActive && <ChevronRight className="w-3.5 h-3.5 text-slate-900 animate-in slide-in-from-left-1" />}
+                {isActive && <ChevronRight className="w-3.5 h-3.5 text-slate-900 animate-in slide-in-from-left-1 shrink-0" />}
               </Link>
             )
           })}

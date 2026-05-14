@@ -11,6 +11,7 @@ export default function LoginPage() {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
   const [resendTimer, setResendTimer] = useState(0)
+  const [showSessionReset, setShowSessionReset] = useState(false)
 
   useEffect(() => {
     let timer: NodeJS.Timeout
@@ -19,6 +20,16 @@ export default function LoginPage() {
     }
     return () => clearInterval(timer)
   }, [resendTimer])
+
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search)
+    if (params.get('error') === 'forbidden') {
+      setError(
+        'This account is not active for the finance portal. Contact a super admin, or sign out and use a different email.',
+      )
+      setShowSessionReset(true)
+    }
+  }, [])
 
   async function handleSendOtp(e: React.FormEvent) {
     e.preventDefault()
@@ -113,7 +124,7 @@ export default function LoginPage() {
         <div className="flex flex-col items-center mb-10 text-center">
           <div className="relative w-16 h-16 mb-6">
             <img
-              src="/webaura-mark-light.png"
+              src="/webaura-mark.png"
               alt="WebAura"
               className="w-full h-full object-contain"
             />
@@ -189,6 +200,20 @@ export default function LoginPage() {
               <p className="text-[10px] font-black text-red-500 uppercase tracking-wider leading-relaxed px-1">
                 {error}
               </p>
+            )}
+
+            {showSessionReset && (
+              <button
+                type="button"
+                onClick={async () => {
+                  const { createClient } = await import('@/lib/supabase')
+                  await createClient().auth.signOut()
+                  window.location.href = '/login'
+                }}
+                className="w-full py-3 rounded-2xl border border-slate-200 text-[10px] font-black uppercase tracking-widest text-slate-600 hover:bg-slate-50"
+              >
+                Sign out and return to login
+              </button>
             )}
 
             <button

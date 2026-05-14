@@ -37,15 +37,16 @@ export default async function ExpensesPage({
 
   const myEmail = String(user?.email || '').toLowerCase()
   const me = founders.find((f) => f.email.toLowerCase() === myEmail)
-  const isAdmin = me?.role === 'super_admin' || me?.role === 'admin'
+  const isFinanceStaff = me?.role === 'super_admin' || me?.role === 'admin'
+  const isSuperApprover = me?.role === 'super_admin'
 
   const rawView = sp.view
-  const viewParam = String((Array.isArray(rawView) ? rawView[0] : rawView) || (isAdmin ? 'all' : 'mine'))
+  const viewParam = String((Array.isArray(rawView) ? rawView[0] : rawView) || (isFinanceStaff ? 'all' : 'mine'))
   const statusParam = String(Array.isArray(sp.status) ? sp.status[0] : sp.status || 'paid')
   const founderParam = String(Array.isArray(sp.founder) ? sp.founder[0] : sp.founder || '').toLowerCase()
   const searchParam = String(Array.isArray(sp.q) ? sp.q[0] : sp.q || '').toLowerCase()
 
-  const effectiveView = isAdmin ? (viewParam === 'all' ? 'all' : 'mine') : 'mine'
+  const effectiveView = isFinanceStaff ? (viewParam === 'all' ? 'all' : 'mine') : 'mine'
   const effectiveFounder = (effectiveView === 'all' && founderParam) ? founderParam : (effectiveView === 'mine' ? myEmail : '')
 
   const filteredExpenses = expenses.filter((e) => {
@@ -75,7 +76,7 @@ export default async function ExpensesPage({
   })
 
   // Stats - using the full expenses list but filtered by base permissions for "ledger" feel
-  const baseLedger = isAdmin ? expenses : expenses.filter(e => String(e.requested_by || '').toLowerCase() === myEmail)
+  const baseLedger = isFinanceStaff ? expenses : expenses.filter(e => String(e.requested_by || '').toLowerCase() === myEmail)
   const totalPaid = baseLedger
     .filter((e) => String(e.status || '').toLowerCase() === 'paid')
     .reduce((sum, e) => sum + Number(e.amount), 0)
@@ -86,7 +87,7 @@ export default async function ExpensesPage({
 
   const pendingCount = filteredExpenses.filter((e) => String(e.status || '').toLowerCase() === 'pending').length
 
-  const isDefaultView = isAdmin 
+  const isDefaultView = isFinanceStaff 
     ? (effectiveView === 'all' && statusParam === 'paid' && !founderParam) 
     : (statusParam === 'paid')
   const filtersActive = !isDefaultView || searchParam !== ''
@@ -132,7 +133,7 @@ export default async function ExpensesPage({
         <div className="p-4 md:p-8 border-b border-slate-100 flex flex-col gap-6">
           <div className="flex flex-col lg:flex-row justify-between items-start lg:items-end gap-6">
             <ExpensesFilters 
-              isSuperAdmin={isAdmin} 
+              isSuperAdmin={isFinanceStaff} 
               founders={founders} 
               current={{ view: effectiveView as any, status: statusParam, founder: founderParam }} 
             />
@@ -158,7 +159,7 @@ export default async function ExpensesPage({
                     key={expense.id} 
                     expense={expense} 
                     founders={founders} 
-                    isSuperAdmin={isAdmin}
+                    isSuperAdmin={isSuperApprover}
                     currentUserEmail={user?.email || undefined}
                   />
                 ))

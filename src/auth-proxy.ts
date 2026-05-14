@@ -48,9 +48,12 @@ export async function proxy(request: NextRequest) {
     pathname.startsWith('/_next') ||
     pathname.includes('.') // static files (favicon, images, etc.)
   ) {
-    // Redirect logged in users away from login page
+    // Redirect logged in users away from login page (unless they need to recover from forbidden/disabled)
     if (pathname === '/login' && user) {
-      return NextResponse.redirect(new URL('/', request.url))
+      const err = request.nextUrl.searchParams.get('error')
+      if (err !== 'forbidden') {
+        return NextResponse.redirect(new URL('/', request.url))
+      }
     }
     return response
   }
@@ -63,17 +66,4 @@ export async function proxy(request: NextRequest) {
   }
 
   return response
-}
-
-export const config = {
-  matcher: [
-    /*
-     * Match all request paths except for the ones starting with:
-     * - _next/static (static files)
-     * - _next/image (image optimization files)
-     * - favicon.ico (favicon file)
-     * Feel free to modify this pattern to include more paths.
-     */
-    '/((?!_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)',
-  ],
 }

@@ -41,8 +41,24 @@ export async function createClient() {
       const value = Reflect.get(target, prop);
       if (prop === 'from' && typeof value === 'function') {
         return (tableName: string) => {
+          if (tableName.startsWith('information_schema.')) return target.from(tableName);
           const schema = REFERRAL_TABLES.includes(tableName) ? 'referrals' : 'finance';
-          return target.schema(schema).from(tableName);
+          
+          const query = target.schema(schema).from(tableName);
+          
+          if (schema === 'finance' && (query as any).then) {
+            const originalThen = (query as any).then.bind(query);
+            (query as any).then = ((onfulfilled: any, onrejected: any) => {
+              return originalThen((res: any) => {
+                if (res.error && (res.error.message?.includes('schema') || res.error.code === '42P01')) {
+                  return (target.from(tableName) as any).then(onfulfilled, onrejected)
+                }
+                return onfulfilled ? onfulfilled(res) : res;
+              }, onrejected);
+            }) as any;
+          }
+          
+          return query;
         };
       }
       if (prop === 'rpc' && typeof value === 'function') {
@@ -68,8 +84,24 @@ export function createStaticClient() {
       const value = Reflect.get(target, prop);
       if (prop === 'from' && typeof value === 'function') {
         return (tableName: string) => {
+          if (tableName.startsWith('information_schema.')) return target.from(tableName);
           const schema = REFERRAL_TABLES.includes(tableName) ? 'referrals' : 'finance';
-          return target.schema(schema).from(tableName);
+          
+          const query = target.schema(schema).from(tableName);
+          
+          if (schema === 'finance' && (query as any).then) {
+            const originalThen = (query as any).then.bind(query);
+            (query as any).then = ((onfulfilled: any, onrejected: any) => {
+              return originalThen((res: any) => {
+                if (res.error && (res.error.message?.includes('schema') || res.error.code === '42P01')) {
+                  return (target.from(tableName) as any).then(onfulfilled, onrejected)
+                }
+                return onfulfilled ? onfulfilled(res) : res;
+              }, onrejected);
+            }) as any;
+          }
+          
+          return query;
         };
       }
       if (prop === 'rpc' && typeof value === 'function') {

@@ -26,7 +26,7 @@ export default function SearchInput({ placeholder = "Search...", param = "q" }: 
   }, [value, param, pathname, router, searchParams])
 
   return (
-    <div className="relative w-full md:w-96">
+    <div className="relative w-full">
       <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
       <input
         type="text"

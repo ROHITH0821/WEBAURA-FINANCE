@@ -3,7 +3,7 @@
 import { useMemo, useState, useTransition } from 'react'
 import { Loader2, Plus } from 'lucide-react'
 import * as navigation from 'next/navigation'
-import { addTeamMemberAction, setTeamMemberActiveAction, setTeamMemberNameAction } from '@/lib/team-actions'
+import { addTeamMemberAction, deleteTeamMemberAction, updateTeamMemberAction } from '@/lib/team-actions'
 
 interface TeamMember {
   email: string
@@ -19,6 +19,7 @@ export default function TeamSettingsClient(props: { myEmail: string; members: Te
   const [name, setName] = useState('')
   const [editingEmail, setEditingEmail] = useState<string | null>(null)
   const [editName, setEditName] = useState('')
+  const [editEmail, setEditEmail] = useState('')
 
   const rows = useMemo(() => {
     return [...props.members].sort((a, b) => {
@@ -81,6 +82,7 @@ export default function TeamSettingsClient(props: { myEmail: string; members: Te
                       }
                       setEditingEmail(String(m.email))
                       setEditName(String(m.full_name || ''))
+                      setEditEmail(String(m.email))
                     }}
                     className="text-[10px] font-black uppercase tracking-[0.25em] text-slate-700 hover:text-slate-900 transition-colors"
                   >
@@ -93,7 +95,8 @@ export default function TeamSettingsClient(props: { myEmail: string; members: Te
                       disabled={pending}
                       onClick={() =>
                         startTransition(async () => {
-                          const r = await setTeamMemberActiveAction(m.email, false)
+                          if (!window.confirm(`Are you sure you want to revoke access for ${m.email}?`)) return
+                          const r = await deleteTeamMemberAction(m.email)
                           if (r.ok === false) window.alert(r.error)
                           router?.refresh()
                         })
@@ -110,6 +113,15 @@ export default function TeamSettingsClient(props: { myEmail: string; members: Te
                     <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4 md:p-6">
                       <div className="grid grid-cols-1 sm:grid-cols-[1fr_auto] gap-3 items-end">
                         <div className="w-full">
+                          <label className="text-[9px] md:text-[10px] font-black uppercase tracking-[0.2em] text-slate-500 ml-1">Email Address</label>
+                          <input
+                            value={editEmail}
+                            onChange={(e) => setEditEmail(e.target.value)}
+                            className="mt-2 w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm font-bold text-slate-900 outline-none focus:border-slate-400"
+                            placeholder="Email"
+                          />
+                        </div>
+                        <div className="w-full">
                           <label className="text-[9px] md:text-[10px] font-black uppercase tracking-[0.2em] text-slate-500 ml-1">Display Name</label>
                           <input
                             value={editName}
@@ -123,11 +135,12 @@ export default function TeamSettingsClient(props: { myEmail: string; members: Te
                           disabled={pending}
                           onClick={() =>
                             startTransition(async () => {
-                              const r = await setTeamMemberNameAction(m.email, editName.trim() || null)
+                              const r = await updateTeamMemberAction(m.email, editEmail.trim(), editName.trim() || null)
                               if (r.ok === false) window.alert(r.error)
                               router?.refresh()
                               setEditingEmail(null)
                               setEditName('')
+                              setEditEmail('')
                             })
                           }
                           className="h-[46px] px-8 rounded-xl bg-slate-900 text-white text-[9px] md:text-[10px] font-black uppercase tracking-widest hover:bg-slate-800 transition-all disabled:opacity-30 w-full sm:w-auto"

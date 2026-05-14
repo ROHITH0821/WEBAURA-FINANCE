@@ -92,7 +92,7 @@ export async function sendResendOTP(email: string) {
         html: `
           <div style="font-family: sans-serif; max-width: 600px; margin: 0 auto; border: 1px solid #eee; border-radius: 12px; padding: 40px; color: #1a2314;">
             <div style="margin-bottom: 32px; text-align: center;">
-              <img src="https://finance.webauraindia.com/webaura-mark-light.png" alt="WebAura" style="height: 48px; width: auto;" />
+              <img src="https://finance.webauraindia.com/webaura-mark.png" alt="WebAura" style="height: 48px; width: auto;" />
             </div>
             <h1 style="font-size: 20px; font-weight: 800; margin-bottom: 24px; text-transform: uppercase; color: #000; text-align: center; letter-spacing: 0.05em;">Verification Code</h1>
             <p style="font-size: 14px; color: #666; margin-bottom: 32px; text-align: center;">Use the following code to access the Finance Portal. This code will expire in 10 minutes.</p>

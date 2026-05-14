@@ -67,19 +67,48 @@ export async function setTeamMemberActiveAction(email: string, isActive: boolean
   return { ok: true }
 }
 
-export async function setTeamMemberNameAction(email: string, fullName: string | null): Promise<ActionResult> {
+export async function updateTeamMemberAction(oldEmail: string, newEmail: string, fullName: string | null): Promise<ActionResult> {
+  const gate = await requireSuperAdmin()
+  if ('error' in gate) return { ok: false, error: gate.error }
+
+  const normalizedOld = String(oldEmail || '').trim().toLowerCase()
+  const normalizedNew = String(newEmail || '').trim().toLowerCase()
+
+  if (!normalizedNew || !normalizedNew.includes('@')) return { ok: false, error: 'Valid new email is required.' }
+  if (normalizedOld === gate.myEmail && normalizedOld !== normalizedNew) {
+    return { ok: false, error: 'You cannot change your own email from this panel.' }
+  }
+
+  const admin = createStaticClient()
+
+  // If email changed, we need to update the primary key
+  const { error } = await admin
+    .from('admin_users')
+    .update({ 
+      email: normalizedNew,
+      full_name: fullName && fullName.trim() ? fullName.trim() : null 
+    })
+    .eq('email', normalizedOld)
+
+  if (error) return { ok: false, error: error.message }
+  revalidate('founders')
+  return { ok: true }
+}
+
+export async function deleteTeamMemberAction(email: string): Promise<ActionResult> {
   const gate = await requireSuperAdmin()
   if ('error' in gate) return { ok: false, error: gate.error }
 
   const normalized = String(email || '').trim().toLowerCase()
+  if (normalized === gate.myEmail) return { ok: false, error: 'You cannot remove yourself.' }
+
   const admin = createStaticClient()
+  const { data: row } = await admin.from('admin_users').select('role,email').eq('email', normalized).maybeSingle()
+  if (row?.role === 'super_admin') return { ok: false, error: 'Super admin cannot be removed.' }
 
-  const { error } = await admin
-    .from('admin_users')
-    .update({ full_name: fullName && fullName.trim() ? fullName.trim() : null })
-    .eq('email', normalized)
-
+  const { error } = await admin.from('admin_users').delete().eq('email', normalized)
   if (error) return { ok: false, error: error.message }
+
   revalidate('founders')
   return { ok: true }
 }
