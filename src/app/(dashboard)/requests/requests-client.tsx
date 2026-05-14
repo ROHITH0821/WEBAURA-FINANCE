@@ -32,6 +32,47 @@ export default function RequestsClient(props: {
   const [tab, setTab] = useState<'expenses' | 'referrals' | 'recruitment'>('expenses')
   const [pending, startTransition] = useTransition()
   const [banner, setBanner] = useState<{ type: 'success' | 'error'; text: string } | null>(null)
+  /** Hide rows immediately after reject while refresh / cache catches up. */
+  const [dismissedKeys, setDismissedKeys] = useState<Set<string>>(() => new Set())
+
+  const markRejectedDismissed = (kind: 'expense' | 'referral' | 'recruitment', id: string | number) => {
+    const key = `${kind}:${id}`
+    setDismissedKeys((prev) => new Set(prev).add(key))
+  }
+
+  useEffect(() => {
+    setDismissedKeys((prev) => {
+      if (prev.size === 0) return prev
+      const next = new Set<string>()
+      for (const k of prev) {
+        const colon = k.indexOf(':')
+        if (colon < 0) continue
+        const kind = k.slice(0, colon) as 'expense' | 'referral' | 'recruitment'
+        const id = k.slice(colon + 1)
+        const stillThere =
+          kind === 'expense'
+            ? props.pendingExpenseRequests.some((r) => String(r.id) === id)
+            : kind === 'referral'
+              ? props.pendingReferralLeadRewards.some((r) => String(r.id) === id)
+              : props.pendingRecruitmentRewards.some((r) => String(r.id) === id)
+        if (stillThere) next.add(k)
+      }
+      return next
+    })
+  }, [props.pendingExpenseRequests, props.pendingReferralLeadRewards, props.pendingRecruitmentRewards])
+
+  const visibleExpenseRequests = useMemo(
+    () => props.pendingExpenseRequests.filter((r) => !dismissedKeys.has(`expense:${r.id}`)),
+    [props.pendingExpenseRequests, dismissedKeys]
+  )
+  const visibleReferralRewards = useMemo(
+    () => props.pendingReferralLeadRewards.filter((r) => !dismissedKeys.has(`referral:${r.id}`)),
+    [props.pendingReferralLeadRewards, dismissedKeys]
+  )
+  const visibleRecruitmentRewards = useMemo(
+    () => props.pendingRecruitmentRewards.filter((r) => !dismissedKeys.has(`recruitment:${r.id}`)),
+    [props.pendingRecruitmentRewards, dismissedKeys]
+  )
 
   const setTabWithHash = (next: 'expenses' | 'referrals' | 'recruitment') => {
     setTab(next)
@@ -59,9 +100,9 @@ export default function RequestsClient(props: {
     return () => window.clearTimeout(t)
   }, [banner])
 
-  const expenseCount = props.pendingExpenseRequests.length
-  const referralCount = props.pendingReferralLeadRewards.length
-  const recruitmentCount = props.pendingRecruitmentRewards.length
+  const expenseCount = visibleExpenseRequests.length
+  const referralCount = visibleReferralRewards.length
+  const recruitmentCount = visibleRecruitmentRewards.length
 
   const empty =
     (tab === 'expenses' && expenseCount === 0) ||
@@ -218,8 +259,8 @@ export default function RequestsClient(props: {
         </div>
       ) : (
         <div className="grid gap-4 md:gap-6">
-          {tab === 'expenses' && (
-            props.pendingExpenseRequests.map((r) => (
+          {tab === 'expenses' &&
+            visibleExpenseRequests.map((r) => (
               <ExpenseCard
                 key={r.id}
                 row={r}
@@ -228,12 +269,12 @@ export default function RequestsClient(props: {
                 pending={pending}
                 startTransition={startTransition}
                 notify={setBanner}
+                onRejected={() => markRejectedDismissed('expense', r.id)}
               />
-            ))
-          )}
+            ))}
 
-          {tab === 'referrals' && (
-            props.pendingReferralLeadRewards.map((row) => (
+          {tab === 'referrals' &&
+            visibleReferralRewards.map((row) => (
               <ReferralCard
                 key={row.id}
                 row={row}
@@ -241,12 +282,12 @@ export default function RequestsClient(props: {
                 pending={pending}
                 startTransition={startTransition}
                 notify={setBanner}
+                onRejected={() => markRejectedDismissed('referral', row.id)}
               />
-            ))
-          )}
+            ))}
 
-          {tab === 'recruitment' && (
-            props.pendingRecruitmentRewards.map((row) => (
+          {tab === 'recruitment' &&
+            visibleRecruitmentRewards.map((row) => (
               <RecruitmentCard
                 key={row.id}
                 row={row}
@@ -254,9 +295,9 @@ export default function RequestsClient(props: {
                 pending={pending}
                 startTransition={startTransition}
                 notify={setBanner}
+                onRejected={() => markRejectedDismissed('recruitment', row.id)}
               />
-            ))
-          )}
+            ))}
         </div>
       )}
     </div>
@@ -270,6 +311,7 @@ function ExpenseCard({
   pending,
   startTransition,
   notify,
+  onRejected,
 }: {
   row: any
   /** Super admin only (matches server `approveExpenseRequestAction`). */
@@ -278,6 +320,7 @@ function ExpenseCard({
   pending: boolean
   startTransition: any
   notify: (msg: { type: 'success' | 'error'; text: string }) => void
+  onRejected?: () => void
 }) {
   const router = typeof navigation.useRouter === 'function' ? navigation.useRouter() : null
   const [payRef, setPayRef] = useState('')
@@ -423,6 +466,7 @@ function ExpenseCard({
                     notify({ type: 'error', text: r.error })
                     return
                   }
+                  onRejected?.()
                   notify({ type: 'success', text: 'Request rejected.' })
                   router?.refresh()
                   setRejectOpen(false)
@@ -445,12 +489,14 @@ function ReferralCard({
   pending,
   startTransition,
   notify,
+  onRejected,
 }: {
   row: any
   canApprovePayouts: boolean
   pending: boolean
   startTransition: any
   notify: (msg: { type: 'success' | 'error'; text: string }) => void
+  onRejected?: () => void
 }) {
   const router = typeof navigation.useRouter === 'function' ? navigation.useRouter() : null
   const [payRef, setPayRef] = useState('')
@@ -584,6 +630,7 @@ function ReferralCard({
                     notify({ type: 'error', text: r.error })
                     return
                   }
+                  onRejected?.()
                   notify({ type: 'success', text: 'Referral reward rejected.' })
                   router?.refresh()
                   setRejectOpen(false)
@@ -606,12 +653,14 @@ function RecruitmentCard({
   pending,
   startTransition,
   notify,
+  onRejected,
 }: {
   row: any
   canApprovePayouts: boolean
   pending: boolean
   startTransition: any
   notify: (msg: { type: 'success' | 'error'; text: string }) => void
+  onRejected?: () => void
 }) {
   const router = typeof navigation.useRouter === 'function' ? navigation.useRouter() : null
   const [payRef, setPayRef] = useState('')
@@ -743,6 +792,7 @@ function RecruitmentCard({
                     notify({ type: 'error', text: r.error })
                     return
                   }
+                  onRejected?.()
                   notify({ type: 'success', text: 'Recruitment reward rejected.' })
                   router?.refresh()
                   setRejectOpen(false)

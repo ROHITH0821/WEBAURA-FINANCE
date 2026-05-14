@@ -94,7 +94,7 @@ export default function DashboardLayoutClient({
           )}
         </header>
 
-        <main className="flex-1 overflow-y-auto p-4 sm:p-6 lg:p-10 bg-[#fcfcfc] relative">
+        <main className="flex-1 min-h-0 min-w-0 overflow-y-auto overflow-x-hidden p-4 sm:p-6 lg:p-10 bg-[#fcfcfc] relative">
           <div className="pointer-events-none fixed inset-0 z-0 bg-[radial-gradient(#e5e7eb_1px,transparent_1px)] [background-size:32px_32px] opacity-40" />
           
           <div className="relative z-10 mx-auto max-w-[1400px]">

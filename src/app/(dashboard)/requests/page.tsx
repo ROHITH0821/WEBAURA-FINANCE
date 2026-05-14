@@ -48,9 +48,10 @@ export default async function RequestsPage({
   }
 
   // 1. Expenses visibility:
-  // - Non-approvers: own expense_requests (any status)
+  // - Non-approvers: own expense_requests (excluding rejected — cleared from this queue)
   // - Super admin: pending only (team queue). Own paid entries live on /expenses, not Requests.
   const expensesVisible = (expenses || [])
+    .filter((r: any) => String(r.status || '').toLowerCase() !== 'rejected')
     .filter((r: any) => {
       const requesterEmail = String(r.requested_by || '').trim().toLowerCase()
       const isMine = requesterEmail === myEmail
@@ -74,6 +75,7 @@ export default async function RequestsPage({
   })
 
   const referralVisible = referralRows
+    .filter((r: any) => String(r.reward_status || '').toLowerCase() !== 'rejected')
     .filter((r: any) => {
       const refEmail = String(r.referrer_email || '').trim().toLowerCase()
       const isMine = refEmail === myEmail
@@ -85,6 +87,7 @@ export default async function RequestsPage({
     .filter(r => filterFn(r, ['referrer_name', 'referrer_email', 'lead_name']))
 
   const recruitmentVisible = (recruitmentRewards || [])
+    .filter((r: any) => String(r.status || '').toLowerCase() !== 'rejected')
     .filter((r: any) => {
       const ref = r.recruiter_id ? refMap.get(String(r.recruiter_id)) : null
       const refEmail = String(ref?.email || '').trim().toLowerCase()
