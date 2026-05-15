@@ -36,12 +36,16 @@ export default function NewExpensePage() {
     setError('')
 
     try {
-      const res = await createExpense(formData)
-
+      const res = (await createExpense(formData)) as { error?: string; ok?: boolean; redirect?: string } | undefined
       if (res?.error) throw new Error(res.error)
-    } catch (err: any) {
-      if (err?.digest?.includes?.('NEXT_REDIRECT')) throw err
-      setError(err.message || 'Failed to request reimbursement')
+      if (res?.redirect) {
+        router.push(res.redirect)
+        router.refresh()
+        return
+      }
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : 'Failed to request reimbursement'
+      setError(msg)
     } finally {
       setLoading(false)
     }

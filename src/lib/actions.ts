@@ -138,7 +138,7 @@ export async function createExpense(formData: any) {
   })
 
   await refreshFinanceData()
-  redirect(isSuper ? '/expenses' : '/requests')
+  return { ok: true as const, redirect: isSuper ? '/expenses' : '/requests#expenses' }
 }
 
 export async function approveExpense(expenseId: string, adminEmail?: string, paymentTransactionRef?: string) {

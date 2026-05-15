@@ -38,10 +38,13 @@ export default async function ExpensesPage({
   const me = founders.find((f) => f.email.toLowerCase() === myEmail)
   const isFinanceStaff = me?.role === 'super_admin' || me?.role === 'admin'
   const isSuperApprover = me?.role === 'super_admin'
+  /** Admins see the org ledger but cannot approve; default to all statuses so pending rows are visible. */
+  const isNormalAdmin = me?.role === 'admin'
+  const defaultStatusFilter = isNormalAdmin ? 'all' : 'paid'
 
   const rawView = sp.view
   const viewParam = String((Array.isArray(rawView) ? rawView[0] : rawView) || (isFinanceStaff ? 'all' : 'mine'))
-  const statusParam = String(Array.isArray(sp.status) ? sp.status[0] : sp.status || 'paid')
+  const statusParam = String(Array.isArray(sp.status) ? sp.status[0] : sp.status || defaultStatusFilter)
   const founderParam = String(Array.isArray(sp.founder) ? sp.founder[0] : sp.founder || '').toLowerCase()
   const searchParam = String(Array.isArray(sp.q) ? sp.q[0] : sp.q || '').toLowerCase()
 
@@ -86,9 +89,11 @@ export default async function ExpensesPage({
 
   const pendingCount = filteredExpenses.filter((e) => String(e.status || '').toLowerCase() === 'pending').length
 
-  const isDefaultView = isFinanceStaff 
-    ? (effectiveView === 'all' && statusParam === 'paid' && !founderParam) 
-    : (statusParam === 'paid')
+  const isDefaultView = isFinanceStaff
+    ? isNormalAdmin
+      ? effectiveView === 'all' && statusParam === 'all' && !founderParam
+      : effectiveView === 'all' && statusParam === 'paid' && !founderParam
+    : statusParam === 'paid'
   const filtersActive = !isDefaultView || searchParam !== ''
 
   return (
