@@ -1,6 +1,7 @@
 import Link from 'next/link'
 import { Plus, Filter } from 'lucide-react'
 import { formatCurrency } from '@/lib/utils'
+import { activeFinanceRole } from '@/lib/admin-gates'
 import { createClient, createStaticClient } from '@/lib/supabaseServer'
 import { getExpenseRequests, getFounders } from '@/lib/data'
 import ExpenseRow from '@/components/ExpenseRow'
@@ -35,7 +36,7 @@ export default async function ExpensesPage({
       role: String(f.role || ''),
     }))
 
-  const role = meRow?.is_active ? String(meRow.role || '') : ''
+  const role = activeFinanceRole(meRow)
   const isSuperAdmin = role === 'super_admin'
   const isNormalAdmin = role === 'admin'
   const isFounder = role === 'founder'
@@ -189,7 +190,8 @@ export default async function ExpensesPage({
                 key={expense.id}
                 expense={expense}
                 founders={founders}
-                isSuperAdmin={isSuperApprover}
+                canApproveAndPay={isSuperApprover}
+                canDelete={isSuperAdmin}
                 currentUserEmail={user?.email || undefined}
               />
             ))

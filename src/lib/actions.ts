@@ -306,6 +306,46 @@ export async function approveExpense(expenseId: string, adminEmail?: string, pay
 }
 
 export async function deleteExpense(expenseId: string) {
-  void expenseId
-  return { error: 'Expense records cannot be deleted. The audit trail is permanent.' }
+  const gate = await requireSuperAdmin()
+  if (!gate.ok) return { error: gate.error }
+
+  const id = String(expenseId || '').trim()
+  if (!id) return { error: 'Invalid expense id.' }
+
+  const supabase = createStaticClient()
+  const { data: before } = await supabase.from('expense_requests').select('*').eq('id', id).maybeSingle()
+  if (!before) return { error: 'Expense not found.' }
+
+  await logAudit({
+    action_by: gate.email,
+    action_type: 'DELETE',
+    record_type: 'expense_requests',
+    record_id: id,
+    old_value: before,
+    new_value: null,
+    notes: 'Removed from expense ledger by super admin',
+  })
+
+  const projectId = (before as { project_id?: string | null }).project_id
+  const wasPaid = String((before as { status?: string }).status || '').toLowerCase() === 'paid'
+
+  const { data: removed, error } = await supabase
+    .from('expense_requests')
+    .delete()
+    .eq('id', id)
+    .select('id')
+    .maybeSingle()
+
+  if (error) {
+    console.error('Delete Expense Error:', error)
+    return { error: error.message }
+  }
+  if (!removed) return { error: 'Could not delete expense. Refresh and try again.' }
+
+  if (wasPaid && projectId) {
+    await syncProjectPaidExpenses(supabase, projectId)
+  }
+
+  await refreshFinanceData()
+  return { ok: true as const }
 }
