@@ -120,6 +120,6 @@ export async function submitExpenseRequest(formData: {
   refreshAfterExpense()
   return {
     ok: true as const,
-    fallbackPath: isSuper ? '/expenses' : '/requests',
+    redirectTo: isSuper ? '/expenses' : '/requests#expenses',
   }
 }

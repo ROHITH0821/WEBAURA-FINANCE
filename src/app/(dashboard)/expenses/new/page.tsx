@@ -68,12 +68,9 @@ export default function NewExpensePage() {
       })
       if (res?.error) throw new Error(res.error)
       if (res?.ok) {
+        const dest = res.redirectTo || '/requests#expenses'
+        router?.push(dest)
         router?.refresh()
-        if (typeof window !== 'undefined' && window.history.length > 1) {
-          router?.back()
-        } else {
-          router?.push(res.fallbackPath || '/requests')
-        }
         return
       }
       throw new Error('Unexpected response from server. Try again.')
