@@ -1,5 +1,5 @@
 import Link from 'next/link'
-import { Plus, Search, Filter, Receipt, Calendar, User, Tag } from 'lucide-react'
+import { Plus, Filter } from 'lucide-react'
 import { formatCurrency } from '@/lib/utils'
 import { createClient } from '@/lib/supabaseServer'
 import { getExpenseRequests, getFounders } from '@/lib/data'
@@ -92,7 +92,7 @@ export default async function ExpensesPage({
   const filtersActive = !isDefaultView || searchParam !== ''
 
   return (
-    <div className="space-y-6 md:space-y-10 motion-safe:animate-in motion-safe:fade-in motion-safe:duration-200">
+    <div className="mx-auto min-w-0 max-w-full space-y-6 md:space-y-10 motion-safe:animate-in motion-safe:fade-in motion-safe:duration-200">
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-end gap-4">
         <div>
           <h2 className="text-2xl md:text-3xl font-black tracking-tight text-slate-900 mb-2 uppercase">Expense Tracker</h2>
@@ -107,29 +107,39 @@ export default async function ExpensesPage({
         </Link>
       </div>
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4 md:gap-8">
-        <div className="glass-card p-6 md:p-8 border-l-4 border-slate-900">
-          <p className="text-slate-400 text-[9px] md:text-[10px] font-black uppercase tracking-[0.2em] mb-1 md:mb-2">Total Ledger</p>
-          <h3 className="text-2xl md:text-3xl font-black text-slate-900 tracking-tight">{formatCurrency(totalPaid)}</h3>
+      <div className="grid min-w-0 grid-cols-2 gap-3 md:grid-cols-3 md:gap-8">
+        <div className="glass-card min-w-0 border-l-4 border-slate-900 p-4 sm:p-5 md:p-8">
+          <p className="mb-1 text-[8px] font-black uppercase tracking-[0.18em] text-slate-400 sm:text-[9px] md:mb-2 md:text-[10px] md:tracking-[0.2em]">
+            Total Ledger
+          </p>
+          <h3 className="break-words text-lg font-black tabular-nums tracking-tight text-slate-900 sm:text-xl md:text-2xl lg:text-3xl">
+            {formatCurrency(totalPaid)}
+          </h3>
         </div>
-        <div className="glass-card p-6 md:p-8 border-l-4 border-emerald-500">
-          <p className="text-slate-400 text-[9px] md:text-[10px] font-black uppercase tracking-[0.2em] mb-1 md:mb-2">
+        <div className="glass-card min-w-0 border-l-4 border-emerald-500 p-4 sm:p-5 md:p-8">
+          <p className="mb-1 text-[8px] font-black uppercase tracking-[0.18em] text-slate-400 sm:text-[9px] md:mb-2 md:text-[10px] md:tracking-[0.2em]">
             {effectiveView === 'mine'
               ? 'My Contribution'
               : effectiveFounder
                 ? 'Founder Contribution'
                 : 'All Founders'}
           </p>
-          <h3 className="text-2xl md:text-3xl font-black text-slate-900 tracking-tight">{formatCurrency(filteredPaid)}</h3>
+          <h3 className="break-words text-lg font-black tabular-nums tracking-tight text-slate-900 sm:text-xl md:text-2xl lg:text-3xl">
+            {formatCurrency(filteredPaid)}
+          </h3>
         </div>
-        <div className="glass-card p-6 md:p-8 border-l-4 border-amber-500 sm:col-span-2 md:col-span-1">
-          <p className="text-slate-400 text-[9px] md:text-[10px] font-black uppercase tracking-[0.2em] mb-1 md:mb-2">Pending Requests</p>
-          <h3 className="text-2xl md:text-3xl font-black text-slate-900 tracking-tight">{pendingCount} Pending</h3>
+        <div className="glass-card col-span-2 w-[calc((100%-0.75rem)/2)] max-w-full justify-self-center border-l-4 border-amber-500 p-4 sm:p-5 md:col-span-1 md:w-full md:max-w-none md:justify-self-stretch md:p-8">
+          <p className="mb-1 text-center text-[8px] font-black uppercase tracking-[0.18em] text-slate-400 sm:text-[9px] md:mb-2 md:text-left md:text-[10px] md:tracking-[0.2em]">
+            Pending Requests
+          </p>
+          <h3 className="text-center text-lg font-black tabular-nums tracking-tight text-slate-900 sm:text-xl md:text-left md:text-2xl lg:text-3xl">
+            {pendingCount} Pending
+          </h3>
         </div>
       </div>
 
-      <div className="glass-card overflow-hidden bg-white">
-        <div className="p-4 md:p-8 border-b border-slate-100 flex flex-col gap-6">
+      <div className="glass-card min-w-0 overflow-hidden bg-white">
+        <div className="border-b border-slate-100 p-4 md:p-8">
           <ExpensesFilters
             isSuperAdmin={isFinanceStaff}
             founders={founders}
@@ -142,56 +152,44 @@ export default async function ExpensesPage({
           />
         </div>
 
-        <div className="overflow-x-auto scrollbar-hide">
-          <table className="w-full text-left min-w-[700px]">
-            <thead>
-              <tr className="text-slate-400 text-[9px] font-black uppercase tracking-[0.2em] border-b border-slate-100 bg-slate-50/50">
-                <th className="px-6 md:px-10 py-4 md:py-6">Description & Category</th>
-                <th className="px-6 py-4 md:py-6">Date</th>
-                <th className="px-6 py-4 md:py-6 text-right">Amount</th>
-                <th className="px-6 py-4 md:py-6">Status</th>
-                <th className="px-6 md:px-10 py-4 md:py-6"></th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-slate-100">
-              {filteredExpenses.length > 0 ? (
-                filteredExpenses.map((expense) => (
-                  <ExpenseRow 
-                    key={expense.id} 
-                    expense={expense} 
-                    founders={founders} 
-                    isSuperAdmin={isSuperApprover}
-                    currentUserEmail={user?.email || undefined}
-                  />
-                ))
-              ) : (
-                <tr>
-                  <td colSpan={5} className="px-6 md:px-10 py-20 md:py-32 text-center">
-                    <div className="flex flex-col items-center gap-4">
-                      <div className="w-12 h-12 rounded-2xl bg-slate-50 flex items-center justify-center">
-                        <Filter className="w-6 h-6 text-slate-200" />
-                      </div>
-                      <div>
-                        <p className="text-[10px] font-black text-slate-900 uppercase tracking-widest mb-1">
-                          {filtersActive ? 'No matching results' : 'Empty Ledger'}
-                        </p>
-                        <p className="text-[9px] font-bold text-slate-400 uppercase tracking-widest">
-                          {filtersActive 
-                            ? 'Try adjusting your filters or search query' 
-                            : 'Expenses you add will appear here'}
-                        </p>
-                      </div>
-                      {filtersActive && (
-                        <Link href="/expenses" className="mt-2 text-[9px] font-black text-slate-900 uppercase border-b-2 border-slate-900 pb-0.5">
-                          Clear all filters
-                        </Link>
-                      )}
-                    </div>
-                  </td>
-                </tr>
-              )}
-            </tbody>
-          </table>
+        <div className="min-w-0">
+          {filteredExpenses.length > 0 ? (
+            filteredExpenses.map((expense) => (
+              <ExpenseRow
+                key={expense.id}
+                expense={expense}
+                founders={founders}
+                isSuperAdmin={isSuperApprover}
+                currentUserEmail={user?.email || undefined}
+              />
+            ))
+          ) : (
+            <div className="px-6 py-16 text-center md:px-10 md:py-24">
+              <div className="mx-auto flex max-w-sm flex-col items-center gap-4">
+                <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-slate-50">
+                  <Filter className="h-6 w-6 text-slate-200" />
+                </div>
+                <div>
+                  <p className="mb-1 text-[10px] font-black uppercase tracking-widest text-slate-900">
+                    {filtersActive ? 'No matching results' : 'Empty Ledger'}
+                  </p>
+                  <p className="text-[9px] font-bold uppercase tracking-widest text-slate-400">
+                    {filtersActive
+                      ? 'Try adjusting your filters or search query'
+                      : 'Expenses you add will appear here'}
+                  </p>
+                </div>
+                {filtersActive && (
+                  <Link
+                    href="/expenses"
+                    className="mt-2 border-b-2 border-slate-900 pb-0.5 text-[9px] font-black uppercase text-slate-900"
+                  >
+                    Clear all filters
+                  </Link>
+                )}
+              </div>
+            </div>
+          )}
         </div>
       </div>
     </div>

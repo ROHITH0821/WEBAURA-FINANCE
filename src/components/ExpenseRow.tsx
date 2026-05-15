@@ -81,56 +81,58 @@ export default function ExpenseRow({ expense, founders, isSuperAdmin, currentUse
   if (deleted) return null
 
   return (
-    <tr className="group hover:bg-[#f7f7dc]/30 transition-colors align-top">
-      <td className="px-4 py-6 md:px-10 md:py-8">
-        <div className="flex flex-col sm:flex-row sm:items-center gap-4 sm:gap-5">
-          <div className="w-12 h-12 shrink-0 rounded-2xl bg-slate-50 flex items-center justify-center text-slate-400 group-hover:bg-white group-hover:text-slate-900 transition-all border border-transparent group-hover:border-slate-200 shadow-sm group-hover:shadow-md">
-            <Receipt className="w-5 h-5" />
-          </div>
-          <div className="min-w-0">
-            <div className="font-black text-slate-900 uppercase tracking-tight text-sm break-words">
-              {expense.spent_on || 'Unknown Item'}
+    <article className="group min-w-0 border-b border-slate-100 bg-white px-4 py-5 transition-colors last:border-b-0 hover:bg-[#f7f7dc]/25 md:px-8 md:py-6">
+      <div className="flex min-w-0 flex-col gap-4">
+        <div className="flex min-w-0 flex-col gap-3 sm:flex-row sm:items-start sm:justify-between sm:gap-6">
+          <div className="flex min-w-0 gap-3 sm:gap-4">
+            <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl border border-transparent bg-slate-50 text-slate-400 shadow-sm transition-all group-hover:border-slate-200 group-hover:bg-white group-hover:text-slate-900 group-hover:shadow-md">
+              <Receipt className="h-5 w-5" aria-hidden />
             </div>
-            <div className="flex flex-wrap items-center gap-1.5 text-[10px] font-bold text-slate-400 uppercase mt-1 tracking-wider">
-              <Tag className="w-3 h-3 shrink-0" />
-              <span className="break-all">
-                {expense.category || 'misc'} • {founderName}
-              </span>
-            </div>
-            {message && (
-              <p
-                role="status"
-                className={`mt-2 text-[10px] font-bold uppercase tracking-wide ${
-                  message.type === 'error' ? 'text-rose-600' : 'text-emerald-700'
-                }`}
-              >
-                {message.text}
+            <div className="min-w-0 flex-1">
+              <h4 className="break-words font-black uppercase tracking-tight text-slate-900 text-sm sm:text-base">
+                {expense.spent_on || 'Unknown Item'}
+              </h4>
+              <p className="mt-1 flex min-w-0 flex-wrap items-center gap-1.5 text-[10px] font-bold uppercase tracking-wider text-slate-400">
+                <Tag className="h-3 w-3 shrink-0" aria-hidden />
+                <span className="break-all">
+                  {expense.category || 'misc'} • {founderName}
+                </span>
               </p>
-            )}
+              <div className="mt-2 flex flex-wrap items-center gap-2 text-xs font-bold text-slate-500">
+                <span className="inline-flex items-center gap-1.5">
+                  <Calendar className="h-3.5 w-3.5 shrink-0 text-slate-300" aria-hidden />
+                  {formattedDate}
+                </span>
+                <span
+                  className={
+                    status === 'paid' ? 'badge-green' : status === 'pending' ? 'badge-amber' : 'badge-slate'
+                  }
+                >
+                  {status}
+                </span>
+              </div>
+              {message && (
+                <p
+                  role="status"
+                  className={`mt-2 text-[10px] font-bold uppercase tracking-wide ${
+                    message.type === 'error' ? 'text-rose-600' : 'text-emerald-700'
+                  }`}
+                >
+                  {message.text}
+                </p>
+              )}
+            </div>
+          </div>
+          <div className="shrink-0 text-left sm:text-right">
+            <p className="text-[9px] font-black uppercase tracking-widest text-slate-400 sm:hidden">Amount</p>
+            <p className="font-black tabular-nums tracking-tight text-slate-900 text-lg md:text-xl">
+              {formatCurrency(expense.amount)}
+            </p>
           </div>
         </div>
-      </td>
-      <td className="px-4 py-6 md:px-6 md:py-8 whitespace-nowrap">
-        <div className="flex items-center gap-2 text-slate-500 text-xs font-bold">
-          <Calendar className="w-3.5 h-3.5 text-slate-300 shrink-0" />
-          {formattedDate}
-        </div>
-      </td>
-      <td className="px-4 py-6 md:px-6 md:py-8 text-right font-black text-slate-900 text-base md:text-lg whitespace-nowrap">
-        {formatCurrency(expense.amount)}
-      </td>
-      <td className="px-4 py-6 md:px-6 md:py-8">
-        <span
-          className={
-            status === 'paid' ? 'badge-green' : status === 'pending' ? 'badge-amber' : 'badge-slate'
-          }
-        >
-          {status}
-        </span>
-      </td>
-      <td className="px-4 py-6 md:px-10 md:py-8 text-right">
+
         {isSuperAdmin && (
-          <div className="flex flex-col items-stretch sm:items-end gap-3 min-w-0">
+          <div className="flex min-w-0 flex-col gap-3 border-t border-slate-100 pt-4 sm:flex-row sm:flex-wrap sm:items-start sm:justify-end sm:gap-3 sm:border-0 sm:pt-0">
             {status === 'pending' && (
               <>
                 {!showApprove ? (
@@ -141,13 +143,13 @@ export default function ExpenseRow({ expense, founders, isSuperAdmin, currentUse
                       setMessage(null)
                     }}
                     disabled={loading}
-                    className="inline-flex items-center justify-center gap-2 bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-2.5 rounded-xl text-[9px] font-black uppercase tracking-widest transition-all shadow-md disabled:opacity-50 w-full sm:w-auto"
+                    className="inline-flex w-full items-center justify-center gap-2 rounded-xl bg-emerald-600 px-4 py-2.5 text-[9px] font-black uppercase tracking-widest text-white shadow-md transition-colors hover:bg-emerald-700 disabled:opacity-50 sm:w-auto"
                   >
-                    {loading ? <Loader2 className="w-3 h-3 animate-spin" /> : <CheckCircle2 className="w-3 h-3" />}
+                    {loading ? <Loader2 className="h-3 w-3 animate-spin" /> : <CheckCircle2 className="h-3 w-3" />}
                     Approve
                   </button>
                 ) : (
-                  <div className="w-full max-w-xs sm:max-w-sm space-y-2 rounded-xl border border-slate-200 bg-slate-50 p-3 text-left">
+                  <div className="w-full min-w-0 max-w-full space-y-2 rounded-xl border border-slate-200 bg-slate-50 p-3 text-left sm:max-w-sm">
                     <label className="text-[9px] font-black uppercase tracking-widest text-slate-500">
                       Reimbursement txn ref
                     </label>
@@ -155,9 +157,9 @@ export default function ExpenseRow({ expense, founders, isSuperAdmin, currentUse
                       value={paymentRef}
                       onChange={(e) => setPaymentRef(e.target.value)}
                       placeholder="UTR / UPI reference"
-                      className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm font-semibold text-slate-900 outline-none focus:border-slate-400"
+                      className="box-border w-full min-w-0 rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm font-semibold text-slate-900 outline-none focus:border-slate-400"
                     />
-                    <div className="flex flex-wrap gap-2 justify-end pt-1">
+                    <div className="flex flex-wrap justify-end gap-2 pt-1">
                       <button
                         type="button"
                         onClick={() => {
@@ -165,18 +167,18 @@ export default function ExpenseRow({ expense, founders, isSuperAdmin, currentUse
                           setPaymentRef('')
                           setMessage(null)
                         }}
-                        className="inline-flex items-center gap-1 px-3 py-2 rounded-lg border border-slate-200 text-[9px] font-black uppercase text-slate-600 hover:bg-white"
+                        className="inline-flex items-center gap-1 rounded-lg border border-slate-200 px-3 py-2 text-[9px] font-black uppercase text-slate-600 hover:bg-white"
                       >
-                        <X className="w-3 h-3" />
+                        <X className="h-3 w-3" />
                         Cancel
                       </button>
                       <button
                         type="button"
                         onClick={handleConfirmApprove}
                         disabled={loading}
-                        className="inline-flex items-center gap-2 bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-2 rounded-lg text-[9px] font-black uppercase tracking-widest disabled:opacity-50"
+                        className="inline-flex items-center gap-2 rounded-lg bg-emerald-600 px-4 py-2 text-[9px] font-black uppercase tracking-widest text-white hover:bg-emerald-700 disabled:opacity-50"
                       >
-                        {loading ? <Loader2 className="w-3 h-3 animate-spin" /> : <CheckCircle2 className="w-3 h-3" />}
+                        {loading ? <Loader2 className="h-3 w-3 animate-spin" /> : <CheckCircle2 className="h-3 w-3" />}
                         Confirm
                       </button>
                     </div>
@@ -189,19 +191,19 @@ export default function ExpenseRow({ expense, founders, isSuperAdmin, currentUse
                 type="button"
                 onClick={() => setDeleteConfirm(true)}
                 disabled={loading}
-                className="inline-flex items-center justify-center gap-2 bg-rose-600 hover:bg-rose-700 text-white px-4 py-2.5 rounded-xl text-[9px] font-black uppercase tracking-widest shadow-md disabled:opacity-50 w-full sm:w-auto"
+                className="inline-flex w-full items-center justify-center gap-2 rounded-xl bg-rose-600 px-4 py-2.5 text-[9px] font-black uppercase tracking-widest text-white shadow-md transition-colors hover:bg-rose-700 disabled:opacity-50 sm:w-auto"
               >
-                <Trash2 className="w-3 h-3" />
+                <Trash2 className="h-3 w-3" />
                 Delete
               </button>
             ) : (
-              <div className="rounded-xl border border-rose-100 bg-rose-50/80 p-3 space-y-2 text-left">
+              <div className="w-full min-w-0 space-y-2 rounded-xl border border-rose-100 bg-rose-50/80 p-3 sm:max-w-xs">
                 <p className="text-[10px] font-bold text-rose-800">Delete this row permanently?</p>
-                <div className="flex flex-wrap gap-2 justify-end">
+                <div className="flex flex-wrap justify-end gap-2">
                   <button
                     type="button"
                     onClick={() => setDeleteConfirm(false)}
-                    className="px-3 py-2 rounded-lg border border-slate-200 text-[9px] font-black uppercase text-slate-600 bg-white hover:bg-slate-50"
+                    className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-[9px] font-black uppercase text-slate-600 hover:bg-slate-50"
                   >
                     Cancel
                   </button>
@@ -209,7 +211,7 @@ export default function ExpenseRow({ expense, founders, isSuperAdmin, currentUse
                     type="button"
                     onClick={handleDelete}
                     disabled={loading}
-                    className="px-3 py-2 rounded-lg bg-rose-700 text-white text-[9px] font-black uppercase disabled:opacity-50"
+                    className="rounded-lg bg-rose-700 px-3 py-2 text-[9px] font-black uppercase text-white disabled:opacity-50"
                   >
                     {loading ? '…' : 'Confirm delete'}
                   </button>
@@ -218,7 +220,7 @@ export default function ExpenseRow({ expense, founders, isSuperAdmin, currentUse
             )}
           </div>
         )}
-      </td>
-    </tr>
+      </div>
+    </article>
   )
 }

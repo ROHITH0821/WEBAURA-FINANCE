@@ -2,7 +2,7 @@
 
 import Link from 'next/link'
 import * as navigation from 'next/navigation'
-import { useMemo } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import {
   LayoutDashboard,
   Briefcase,
@@ -16,6 +16,7 @@ import {
   ChevronRight,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
+import { dashboardBottomNavPathSet } from '@/lib/dashboard-bottom-nav'
 import WebAuraFinanceBrand from '@/components/WebAuraFinanceBrand'
 
 const navItems = [
@@ -39,10 +40,23 @@ export default function SidebarStable({
   onClose?: () => void
 }) {
   const pathname = typeof navigation.usePathname === 'function' ? navigation.usePathname() : ''
-  const filteredItems = useMemo(
-    () => navItems.filter((i) => ((i as any).superAdmin ? isSuperAdmin : true)),
-    [isSuperAdmin],
-  )
+  const [hideBottomDuplicates, setHideBottomDuplicates] = useState(false)
+
+  useEffect(() => {
+    const mq = window.matchMedia('(max-width: 1023px)')
+    const apply = () => setHideBottomDuplicates(mq.matches)
+    apply()
+    mq.addEventListener('change', apply)
+    return () => mq.removeEventListener('change', apply)
+  }, [])
+
+  const filteredItems = useMemo(() => {
+    let list = navItems.filter((i) => ((i as any).superAdmin ? isSuperAdmin : true))
+    if (hideBottomDuplicates) {
+      list = list.filter((item) => !dashboardBottomNavPathSet.has(item.href.split('#')[0]))
+    }
+    return list
+  }, [isSuperAdmin, hideBottomDuplicates])
 
   return (
     <aside className="w-64 border-r border-slate-200 bg-white flex flex-col h-full z-20">

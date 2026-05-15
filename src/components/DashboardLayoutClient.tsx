@@ -6,6 +6,7 @@ import Link from 'next/link'
 import * as navigation from 'next/navigation'
 import { Menu, X, ChevronRight } from 'lucide-react'
 import type { RequestAttention } from '@/lib/request-attention'
+import MobileBottomNav from '@/components/MobileBottomNav'
 
 const Sidebar = dynamic(() => import('@/components/SidebarStable'), { ssr: false })
 const Header = dynamic(() => import('@/components/Header'), { ssr: false })
@@ -94,13 +95,15 @@ export default function DashboardLayoutClient({
           )}
         </header>
 
-        <main className="flex-1 min-h-0 min-w-0 overflow-y-auto overflow-x-hidden p-4 sm:p-6 lg:p-10 bg-[#fcfcfc] relative">
+        <main className="relative flex-1 min-h-0 min-w-0 overflow-y-auto overflow-x-hidden bg-[#fcfcfc] p-4 pb-[calc(5.25rem+env(safe-area-inset-bottom))] sm:p-6 sm:pb-[calc(5.25rem+env(safe-area-inset-bottom))] lg:p-10 lg:pb-10">
           <div className="pointer-events-none fixed inset-0 z-0 bg-[radial-gradient(#e5e7eb_1px,transparent_1px)] [background-size:32px_32px] opacity-40" />
           
           <div className="relative z-10 mx-auto max-w-[1400px]">
             {children}
           </div>
         </main>
+
+        <MobileBottomNav requestAttention={requestAttention} />
       </div>
     </div>
   )
