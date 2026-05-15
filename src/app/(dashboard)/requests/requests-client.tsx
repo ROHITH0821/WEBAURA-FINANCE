@@ -196,7 +196,7 @@ export default function RequestsClient(props: {
           </p>
         </div>
         <div className="flex flex-col sm:flex-row gap-3 sm:items-center lg:justify-end shrink-0 w-full min-w-0 lg:w-auto">
-          {props.canSubmitExpenseRequest && !props.canApprovePayouts && (
+          {props.canSubmitExpenseRequest && (
             <Link
               href="/expenses/new"
               className="shrink-0 px-5 sm:px-6 py-3 rounded-xl bg-slate-900 text-white text-[9px] md:text-[10px] font-black uppercase tracking-[0.2em] hover:bg-slate-800 transition-all shadow-xl shadow-slate-200 text-center whitespace-nowrap touch-manipulation"
@@ -255,6 +255,14 @@ export default function RequestsClient(props: {
             <Link href="/requests" className="mt-2 text-[9px] font-black text-slate-900 uppercase border-b-2 border-slate-900 pb-0.5">
               Reset view
             </Link>
+            {tab === 'expenses' && props.canSubmitExpenseRequest && (
+              <Link
+                href="/expenses/new"
+                className="mt-3 inline-flex items-center justify-center rounded-xl bg-slate-900 px-6 py-3 text-[9px] font-black uppercase tracking-[0.2em] text-white shadow-lg shadow-slate-200/80 hover:bg-slate-800 touch-manipulation"
+              >
+                Submit expense request
+              </Link>
+            )}
           </div>
         </div>
       ) : (
