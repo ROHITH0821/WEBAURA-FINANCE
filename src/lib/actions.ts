@@ -5,6 +5,8 @@ import { revalidateTag, revalidatePath } from 'next/cache'
 import { createStaticClient } from '@/lib/supabaseServer'
 import { redirect } from 'next/navigation'
 import { requireActiveAdmin, requireSuperAdmin } from '@/lib/admin-gates'
+import { formatCurrency } from '@/lib/utils'
+import { escapeHtml, sendFinanceTransactionalEmail } from '@/lib/send-finance-email'
 
 const revalidate = (tag: string) => (revalidateTag as any)(tag)
 
@@ -101,6 +103,8 @@ export async function createExpense(formData: any) {
   const isSuper = gate.role === 'super_admin'
   // Super admin: record straight to the paid ledger (same table as expenses UI). Admins/founders stay pending for super approval.
   // Always attribute to the signed-in user (client form cannot spoof).
+  const projectIdRaw = String(formData.project_id || '').trim()
+
   const { data, error } = await supabase
     .from('expense_requests')
     .insert({
@@ -108,11 +112,11 @@ export async function createExpense(formData: any) {
       amount,
       spent_on: spentOn,
       category: formData.category,
-      project_id: formData.project_id || null,
+      project_id: projectIdRaw || null,
       client_name_manual: formData.client_name_manual || null,
       transaction_ref: proofRef,
       receipt_url: formData.receipt_url || null,
-      request_date: formData.request_date || new Date().toISOString().slice(0, 10),
+      request_date: new Date().toISOString().slice(0, 10),
       status: isSuper ? 'paid' : 'pending',
       approved_by: isSuper ? gate.email : null,
       approved_at: isSuper ? new Date().toISOString() : null,
@@ -196,51 +200,36 @@ export async function approveExpense(expenseId: string, adminEmail?: string, pay
     notes: paymentTransactionRef ? `Paid with txn ${String(paymentTransactionRef)}` : null,
   })
 
+  const requester = String((before as any).requested_by || '')
+    .trim()
+    .toLowerCase()
+  const payRef = String(paymentTransactionRef || '').trim()
+  if (requester && payRef) {
+    const spent = escapeHtml(String((before as any).spent_on || ''))
+    const amt = formatCurrency(Number((before as any).amount || 0))
+    const refOut = escapeHtml(payRef)
+    await sendFinanceTransactionalEmail({
+      to: requester,
+      subject: 'WebAura Finance — reimbursement paid',
+      html: `
+        <div style="font-family:system-ui,sans-serif;max-width:560px;margin:0 auto;padding:24px;color:#0f172a;">
+          <p style="font-size:11px;font-weight:800;letter-spacing:0.12em;text-transform:uppercase;color:#64748b;">Reimbursement confirmed</p>
+          <p style="font-size:16px;margin:12px 0;">Your expense request has been <strong>marked paid</strong>.</p>
+          <table style="width:100%;border-collapse:collapse;margin:16px 0;font-size:14px;">
+            <tr><td style="padding:8px 0;color:#64748b;">What you spent on</td><td style="padding:8px 0;font-weight:700;">${spent}</td></tr>
+            <tr><td style="padding:8px 0;color:#64748b;">Amount</td><td style="padding:8px 0;font-weight:800;font-size:18px;">${escapeHtml(amt)}</td></tr>
+            <tr><td style="padding:8px 0;color:#64748b;">Reimbursement reference (UTR / UPI)</td><td style="padding:8px 0;font-family:monospace;font-weight:700;">${refOut}</td></tr>
+          </table>
+          <p style="font-size:12px;color:#64748b;">Keep this email for your records.</p>
+        </div>`,
+    })
+  }
+
   await refreshFinanceData()
   return { ok: true, data }
 }
 
 export async function deleteExpense(expenseId: string) {
-  const gate = await requireSuperAdmin()
-  if (!gate.ok) return { error: gate.error }
-  const supabase = createStaticClient()
-
-  const { data: before, error: beforeErr } = await supabase
-    .from('expense_requests')
-    .select('*')
-    .eq('id', expenseId)
-    .maybeSingle()
-  if (beforeErr) return { error: beforeErr.message }
-  if (!before) return { error: 'Expense not found.' }
-
-  const { error: delErr } = await supabase.from('expense_requests').delete().eq('id', expenseId)
-  if (delErr) return { error: delErr.message }
-
-  // If this expense was paid and linked to a project, re-sync that project's total_expenses.
-  const status = String((before as any).status || '').toLowerCase()
-  const projectId = (before as any).project_id as string | null
-  if (projectId && status === 'paid') {
-    const { data: rows, error: sumErr } = await supabase
-      .from('expense_requests')
-      .select('amount')
-      .eq('project_id', projectId)
-      .eq('status', 'paid')
-    if (!sumErr) {
-      const nextTotal = (rows || []).reduce((s, r: any) => s + Number(r.amount || 0), 0)
-      await supabase.from('projects').update({ total_expenses: nextTotal }).eq('id', projectId)
-    }
-  }
-
-  await logAudit({
-    action_by: gate.email,
-    action_type: 'DELETE',
-    record_type: 'expense_requests',
-    record_id: expenseId,
-    old_value: before,
-    new_value: null,
-    notes: 'Deleted expense entry',
-  })
-
-  await refreshFinanceData()
-  return { ok: true }
+  void expenseId
+  return { error: 'Expense records cannot be deleted. The audit trail is permanent.' }
 }

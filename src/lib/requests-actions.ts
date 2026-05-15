@@ -3,6 +3,8 @@
 import { revalidatePath, revalidateTag } from 'next/cache'
 import { createStaticClient } from '@/lib/supabaseServer'
 import { requireSuperAdmin } from '@/lib/admin-gates'
+import { formatCurrency } from '@/lib/utils'
+import { escapeHtml, sendFinanceTransactionalEmail } from '@/lib/send-finance-email'
 
 type ActionResult = { ok: true } | { ok: false; error: string }
 
@@ -104,6 +106,30 @@ export async function approveExpenseRequestAction(
     notes: `Paid with txn ${paymentTransactionRef.trim()}`,
   })
 
+  const requester = String((before as any).requested_by || '')
+    .trim()
+    .toLowerCase()
+  if (requester) {
+    const spent = escapeHtml(String((before as any).spent_on || ''))
+    const amt = formatCurrency(Number((before as any).amount || 0))
+    const refOut = escapeHtml(paymentTransactionRef.trim())
+    await sendFinanceTransactionalEmail({
+      to: requester,
+      subject: 'WebAura Finance — reimbursement paid',
+      html: `
+        <div style="font-family:system-ui,sans-serif;max-width:560px;margin:0 auto;padding:24px;color:#0f172a;">
+          <p style="font-size:11px;font-weight:800;letter-spacing:0.12em;text-transform:uppercase;color:#64748b;">Reimbursement confirmed</p>
+          <p style="font-size:16px;margin:12px 0;">Your expense request has been <strong>marked paid</strong>.</p>
+          <table style="width:100%;border-collapse:collapse;margin:16px 0;font-size:14px;">
+            <tr><td style="padding:8px 0;color:#64748b;">What you spent on</td><td style="padding:8px 0;font-weight:700;">${spent}</td></tr>
+            <tr><td style="padding:8px 0;color:#64748b;">Amount</td><td style="padding:8px 0;font-weight:800;font-size:18px;">${escapeHtml(amt)}</td></tr>
+            <tr><td style="padding:8px 0;color:#64748b;">Reimbursement reference (UTR / UPI)</td><td style="padding:8px 0;font-family:monospace;font-weight:700;">${refOut}</td></tr>
+          </table>
+          <p style="font-size:12px;color:#64748b;">Keep this email for your records. If anything looks wrong, reply to your finance contact.</p>
+        </div>`,
+    })
+  }
+
   revalidateRequestDomains()
   return { ok: true }
 }
@@ -147,6 +173,30 @@ export async function rejectExpenseRequestAction(expenseId: string, _adminEmail:
     new_value: data,
     notes: why,
   })
+
+  const requester = String((before as any).requested_by || '')
+    .trim()
+    .toLowerCase()
+  if (requester) {
+    const spent = escapeHtml(String((before as any).spent_on || ''))
+    const amt = formatCurrency(Number((before as any).amount || 0))
+    const reasonHtml = escapeHtml(why)
+    await sendFinanceTransactionalEmail({
+      to: requester,
+      subject: 'WebAura Finance — expense request not approved',
+      html: `
+        <div style="font-family:system-ui,sans-serif;max-width:560px;margin:0 auto;padding:24px;color:#0f172a;">
+          <p style="font-size:11px;font-weight:800;letter-spacing:0.12em;text-transform:uppercase;color:#64748b;">Update on your request</p>
+          <p style="font-size:16px;margin:12px 0;">Your expense request could <strong>not be approved</strong> at this time.</p>
+          <table style="width:100%;border-collapse:collapse;margin:16px 0;font-size:14px;">
+            <tr><td style="padding:8px 0;color:#64748b;">What you spent on</td><td style="padding:8px 0;font-weight:700;">${spent}</td></tr>
+            <tr><td style="padding:8px 0;color:#64748b;">Amount</td><td style="padding:8px 0;font-weight:700;">${escapeHtml(amt)}</td></tr>
+            <tr><td style="padding:8px 0;color:#64748b;vertical-align:top;">Reason</td><td style="padding:8px 0;">${reasonHtml}</td></tr>
+          </table>
+          <p style="font-size:12px;color:#64748b;">Questions? Reply to your finance contact.</p>
+        </div>`,
+    })
+  }
 
   revalidateRequestDomains()
   return { ok: true }

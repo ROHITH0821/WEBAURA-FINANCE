@@ -1,6 +1,6 @@
 import { createClient, createStaticClient } from '@/lib/supabaseServer'
 import { formatCurrency } from '@/lib/utils'
-import { getRequestsData, getReferrers } from '@/lib/data'
+import { getRequestsData, getReferrers, getFounders, getProjectsArchive } from '@/lib/data'
 import { computeRequestAttention } from '@/lib/request-attention'
 import RequestsClient from './requests-client'
 import SearchInput from '@/components/SearchInput'
@@ -24,14 +24,39 @@ export default async function RequestsPage({
   const myEmail = String(user?.email || '').trim().toLowerCase()
 
   // Use high-performance cached data
-  const [meRowResult, requestsData, referrers] = await Promise.all([
+  const [meRowResult, requestsData, referrers, foundersData, projectsArchive] = await Promise.all([
     admin.from('admin_users').select('email, role, is_active').eq('email', myEmail).maybeSingle(),
     getRequestsData(),
     getReferrers(),
+    getFounders(),
+    getProjectsArchive(),
   ])
 
   const { data: meRow } = meRowResult
-  const { expenses, referralLeadRewards, recruitmentRewards } = requestsData
+  const { expenses: expensesRaw, referralLeadRewards, recruitmentRewards } = requestsData
+
+  const founderNameByEmail = new Map(
+    (foundersData || [])
+      .filter((f: any) => Boolean(f?.email))
+      .map((f: any) => [String(f.email).toLowerCase(), String(f.full_name || f.email)]),
+  )
+  const projectLabelById = new Map(
+    (projectsArchive || []).map((p: any) => {
+      const parts = [p.project_code, p.client_name, p.project_name].filter(Boolean)
+      const label = parts.length ? parts.join(' · ') : 'Project'
+      return [String(p.id), label] as const
+    }),
+  )
+
+  const expenses = (expensesRaw || []).map((r: any) => {
+    const em = String(r.requested_by || '').trim().toLowerCase()
+    const pid = r.project_id ? String(r.project_id) : ''
+    return {
+      ...r,
+      requester_display_name: founderNameByEmail.get(em) || r.requested_by,
+      project_label: pid ? projectLabelById.get(pid) ?? null : null,
+    }
+  })
   /** Sees org-wide queues (super admin or admin). */
   const isFinanceAdmin = Boolean(meRow?.is_active && (meRow?.role === 'super_admin' || meRow?.role === 'admin'))
   /** Can execute payouts / approvals (matches server actions). */
@@ -60,7 +85,9 @@ export default async function RequestsPage({
       }
       return isMine
     })
-    .filter(e => filterFn(e, ['spent_on', 'category', 'requested_by', 'transaction_ref']))
+    .filter((e) =>
+      filterFn(e, ['spent_on', 'category', 'requested_by', 'transaction_ref', 'requester_display_name', 'project_label']),
+    )
 
   const refMap = new Map((referrers || []).map((r: any) => [String(r.id), r]))
 

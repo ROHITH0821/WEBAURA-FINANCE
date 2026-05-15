@@ -48,7 +48,8 @@ export default async function ExpensesPage({
   const founderParam = String(Array.isArray(sp.founder) ? sp.founder[0] : sp.founder || '').toLowerCase()
   const searchParam = String(Array.isArray(sp.q) ? sp.q[0] : sp.q || '').toLowerCase()
 
-  const effectiveView = isFinanceStaff ? (viewParam === 'all' ? 'all' : 'mine') : 'mine'
+  const effectiveView =
+    me?.role === 'founder' ? 'mine' : isFinanceStaff ? (viewParam === 'all' ? 'all' : 'mine') : 'mine'
   const effectiveFounder = (effectiveView === 'all' && founderParam) ? founderParam : (effectiveView === 'mine' ? myEmail : '')
 
   const filteredExpenses = expenses.filter((e) => {

@@ -2,14 +2,14 @@
 
 import { useState } from 'react'
 import * as navigation from 'next/navigation'
-import { Receipt, Tag, Calendar, CheckCircle2, Loader2, Trash2, X } from 'lucide-react'
+import { Receipt, Tag, Calendar, CheckCircle2, Loader2, X } from 'lucide-react'
 import { formatCurrency } from '@/lib/utils'
-import { approveExpense, deleteExpense } from '@/lib/actions'
+import { approveExpense } from '@/lib/actions'
 
 interface ExpenseRowProps {
   expense: any
   founders: any[]
-  /** Super admin only: approve paid ledger / delete */
+  /** Super admin only: approve from ledger */
   isSuperAdmin: boolean
   currentUserEmail?: string
 }
@@ -18,11 +18,9 @@ export default function ExpenseRow({ expense, founders, isSuperAdmin, currentUse
   const router = typeof navigation.useRouter === 'function' ? navigation.useRouter() : null
   const [loading, setLoading] = useState(false)
   const [status, setStatus] = useState(expense.status || 'pending')
-  const [deleted, setDeleted] = useState(false)
   const [showApprove, setShowApprove] = useState(false)
   const [paymentRef, setPaymentRef] = useState('')
   const [message, setMessage] = useState<{ type: 'error' | 'success'; text: string } | null>(null)
-  const [deleteConfirm, setDeleteConfirm] = useState(false)
 
   const founderName =
     founders.find((f) => String(f.email || '').toLowerCase() === String(expense.requested_by || '').toLowerCase())
@@ -51,22 +49,6 @@ export default function ExpenseRow({ expense, founders, isSuperAdmin, currentUse
     }
   }
 
-  const handleDelete = async () => {
-    setLoading(true)
-    setMessage(null)
-    try {
-      const res = await deleteExpense(expense.id)
-      if ((res as any)?.error) throw new Error((res as any).error)
-      setDeleted(true)
-      router?.refresh()
-    } catch (err: any) {
-      setMessage({ type: 'error', text: err?.message || 'Delete failed.' })
-      setDeleteConfirm(false)
-    } finally {
-      setLoading(false)
-    }
-  }
-
   const formattedDate = (() => {
     try {
       if (!expense.request_date) return 'No Date'
@@ -77,8 +59,6 @@ export default function ExpenseRow({ expense, founders, isSuperAdmin, currentUse
       return 'Error'
     }
   })()
-
-  if (deleted) return null
 
   return (
     <article className="group min-w-0 border-b border-slate-100 bg-white px-4 py-5 transition-colors last:border-b-0 hover:bg-[#f7f7dc]/25 md:px-8 md:py-6">
@@ -146,7 +126,7 @@ export default function ExpenseRow({ expense, founders, isSuperAdmin, currentUse
                     className="inline-flex w-full items-center justify-center gap-2 rounded-xl bg-emerald-600 px-4 py-2.5 text-[9px] font-black uppercase tracking-widest text-white shadow-md transition-colors hover:bg-emerald-700 disabled:opacity-50 sm:w-auto"
                   >
                     {loading ? <Loader2 className="h-3 w-3 animate-spin" /> : <CheckCircle2 className="h-3 w-3" />}
-                    Approve
+                    Approve & pay
                   </button>
                 ) : (
                   <div className="w-full min-w-0 max-w-full space-y-2 rounded-xl border border-slate-200 bg-slate-50 p-3 text-left sm:max-w-sm">
@@ -185,38 +165,6 @@ export default function ExpenseRow({ expense, founders, isSuperAdmin, currentUse
                   </div>
                 )}
               </>
-            )}
-            {!deleteConfirm ? (
-              <button
-                type="button"
-                onClick={() => setDeleteConfirm(true)}
-                disabled={loading}
-                className="inline-flex w-full items-center justify-center gap-2 rounded-xl bg-rose-600 px-4 py-2.5 text-[9px] font-black uppercase tracking-widest text-white shadow-md transition-colors hover:bg-rose-700 disabled:opacity-50 sm:w-auto"
-              >
-                <Trash2 className="h-3 w-3" />
-                Delete
-              </button>
-            ) : (
-              <div className="w-full min-w-0 space-y-2 rounded-xl border border-rose-100 bg-rose-50/80 p-3 sm:max-w-xs">
-                <p className="text-[10px] font-bold text-rose-800">Delete this row permanently?</p>
-                <div className="flex flex-wrap justify-end gap-2">
-                  <button
-                    type="button"
-                    onClick={() => setDeleteConfirm(false)}
-                    className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-[9px] font-black uppercase text-slate-600 hover:bg-slate-50"
-                  >
-                    Cancel
-                  </button>
-                  <button
-                    type="button"
-                    onClick={handleDelete}
-                    disabled={loading}
-                    className="rounded-lg bg-rose-700 px-3 py-2 text-[9px] font-black uppercase text-white disabled:opacity-50"
-                  >
-                    {loading ? '…' : 'Confirm delete'}
-                  </button>
-                </div>
-              </div>
             )}
           </div>
         )}

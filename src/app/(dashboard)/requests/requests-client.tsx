@@ -346,18 +346,31 @@ function ExpenseCard({
           <p className="text-[9px] md:text-[10px] font-black uppercase tracking-[0.3em] text-slate-400 mb-1 md:mb-2">Expense Request</p>
           <p className="text-base md:text-lg font-black text-slate-900 uppercase tracking-tight truncate">{row.spent_on}</p>
           <p className="mt-1 md:mt-2 text-[10px] md:text-[11px] font-black uppercase tracking-widest text-slate-500">
-            {row.category} • {row.requested_by}
+            {row.category} •{' '}
+            <span className="text-slate-800">{row.requester_display_name || row.requested_by}</span>
           </p>
-          <div className="mt-4 rounded-2xl border border-slate-200 bg-[#f7f7dc] p-4">
-            <p className="text-[8px] md:text-[9px] font-black uppercase tracking-[0.2em] text-slate-500 mb-1">Transaction Ref</p>
-            <p className="font-black text-slate-900 tracking-tight text-xs md:text-sm">{row.transaction_ref}</p>
+          {row.project_label ? (
+            <p className="mt-2 text-[10px] font-black uppercase tracking-widest text-slate-600">
+              Client project:{' '}
+              <span className="font-bold normal-case tracking-tight text-slate-900">{row.project_label}</span>
+            </p>
+          ) : null}
+          <div className="mt-4 rounded-2xl border-2 border-slate-900/15 bg-[#f7f7dc] p-4 shadow-inner">
+            <p className="text-[8px] md:text-[9px] font-black uppercase tracking-[0.2em] text-slate-600 mb-1">
+              Proof (UPI / invoice)
+            </p>
+            <p className="break-all font-mono text-sm font-black tracking-tight text-slate-900 md:text-base">
+              {row.transaction_ref}
+            </p>
           </div>
         </div>
 
         <div className="text-left md:text-right w-full md:w-auto flex md:flex-col justify-between items-end md:items-end">
           <div className="md:block">
             <p className="text-[9px] md:text-[10px] font-black uppercase tracking-[0.2em] text-slate-400">Amount</p>
-            <p className="text-2xl md:text-3xl font-black tracking-tighter text-slate-900">{formatCurrency(row.amount)}</p>
+            <p className="text-3xl font-black tabular-nums tracking-tighter text-slate-900 md:text-4xl">
+              {formatCurrency(row.amount)}
+            </p>
           </div>
           <p className="mt-1 text-[9px] md:text-[10px] font-black uppercase tracking-widest text-slate-400">
             {(() => {
