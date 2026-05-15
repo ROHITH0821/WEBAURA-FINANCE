@@ -12,6 +12,7 @@ export default function NewExpenseForm() {
   const [projectsLoading, setProjectsLoading] = useState(true)
   const [projects, setProjects] = useState<ExpenseFormProjectOption[]>([])
   const [projectsError, setProjectsError] = useState('')
+  const [role, setRole] = useState<'super_admin' | 'admin' | 'founder' | null>(null)
   const [formData, setFormData] = useState({
     amount: '',
     spent_on: '',
@@ -29,6 +30,7 @@ export default function NewExpenseForm() {
       const res = await getProjectsForExpenseForm()
       if (cancelled) return
       if (res.ok) {
+        setRole(res.role)
         setProjects(res.projects)
       } else {
         setProjects([])
@@ -50,7 +52,7 @@ export default function NewExpenseForm() {
       const res = (await createExpense({
         ...formData,
         project_id: formData.project_id.trim() || null,
-      })) as { error?: string; ok?: boolean; redirect?: string } | undefined
+      })) as { error?: string; ok?: boolean; redirect?: string; message?: string } | undefined
       if (res?.error) throw new Error(res.error)
       if (res?.redirect) {
         router.push(res.redirect)
@@ -79,7 +81,11 @@ export default function NewExpenseForm() {
         <div className="min-w-0 flex-1">
           <h2 className="text-2xl font-black uppercase tracking-tight text-slate-900 sm:text-3xl">Expense request</h2>
           <p className="mt-1 text-[9px] font-black uppercase leading-relaxed tracking-[0.18em] text-slate-500 sm:text-[10px] sm:tracking-[0.2em]">
-            Submit for super admin approval — five fields only
+            {role === 'super_admin'
+              ? 'Logs straight to the paid ledger — five fields only'
+              : role === 'admin' || role === 'founder'
+                ? 'Sent to super admin for approval and reimbursement — five fields only'
+                : 'Five fields — what you spent, amount, category, optional project, proof'}
           </p>
         </div>
       </div>

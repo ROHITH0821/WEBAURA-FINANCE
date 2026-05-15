@@ -4,7 +4,7 @@ import { revalidateTag, revalidatePath } from 'next/cache'
 
 import { createStaticClient } from '@/lib/supabaseServer'
 import { redirect } from 'next/navigation'
-import { requireActiveAdmin, requireSuperAdmin } from '@/lib/admin-gates'
+import { requireActiveAdmin, requireSuperAdmin, type GateOk } from '@/lib/admin-gates'
 import { formatCurrency } from '@/lib/utils'
 import { escapeHtml, sendFinanceTransactionalEmail } from '@/lib/send-finance-email'
 
@@ -84,35 +84,64 @@ export async function createProject(formData: any) {
 
 export type ExpenseFormProjectOption = { id: string; label: string }
 
-/** Projects list for the expense request form (service role; any active admin/founder). */
+function mapProjectsForExpenseForm(rows: any[]): ExpenseFormProjectOption[] {
+  return (rows || []).map((p: any) => {
+    const title = String(p.project_name || p.name || '').trim()
+    const parts = [p.project_code, p.client_name, title].filter(Boolean)
+    return {
+      id: String(p.id),
+      label: parts.length ? parts.join(' · ') : 'Project',
+    }
+  })
+}
+
+async function syncProjectPaidExpenses(supabase: ReturnType<typeof createStaticClient>, projectId: string) {
+  const { data: rows, error } = await supabase
+    .from('expense_requests')
+    .select('amount')
+    .eq('project_id', projectId)
+    .eq('status', 'paid')
+  if (error) {
+    console.error('syncProjectPaidExpenses:', error)
+    return
+  }
+  const nextTotal = (rows || []).reduce((s: number, r: any) => s + Number(r.amount || 0), 0)
+  await supabase.from('projects').update({ total_expenses: nextTotal }).eq('id', projectId)
+}
+
+/** Projects list + role for the expense request form (any active admin/founder). */
 export async function getProjectsForExpenseForm(): Promise<
-  { ok: true; projects: ExpenseFormProjectOption[] } | { ok: false; error: string; projects: [] }
+  | { ok: true; role: GateOk['role']; projects: ExpenseFormProjectOption[] }
+  | { ok: false; error: string; role?: undefined; projects: [] }
 > {
   const gate = await requireActiveAdmin()
   if (!gate.ok) return { ok: false, error: gate.error, projects: [] }
 
   try {
     const supabase = createStaticClient()
-    const { data, error } = await supabase
+    const primary = await supabase
       .from('projects')
       .select('id, project_code, client_name, project_name, name')
       .order('created_at', { ascending: false })
 
-    if (error) {
-      console.error('getProjectsForExpenseForm:', error)
-      return { ok: false, error: error.message, projects: [] }
+    let rows: any[] = primary.data || []
+    let loadError = primary.error
+
+    if (loadError) {
+      const retry = await supabase
+        .from('projects')
+        .select('id, project_code, client_name')
+        .order('created_at', { ascending: false })
+      rows = retry.data || []
+      loadError = retry.error
     }
 
-    const projects: ExpenseFormProjectOption[] = (data || []).map((p: any) => {
-      const title = String(p.project_name || p.name || '').trim()
-      const parts = [p.project_code, p.client_name, title].filter(Boolean)
-      return {
-        id: String(p.id),
-        label: parts.length ? parts.join(' · ') : 'Project',
-      }
-    })
+    if (loadError) {
+      console.error('getProjectsForExpenseForm:', loadError)
+      return { ok: false, error: loadError.message, projects: [] }
+    }
 
-    return { ok: true, projects }
+    return { ok: true, role: gate.role, projects: mapProjectsForExpenseForm(rows) }
   } catch (e: any) {
     console.error('getProjectsForExpenseForm:', e)
     return { ok: false, error: e?.message || 'Could not load projects', projects: [] }
@@ -168,6 +197,10 @@ export async function createExpense(formData: any) {
     return { error: error.message }
   }
 
+  if (isSuper && projectIdRaw) {
+    await syncProjectPaidExpenses(supabase, projectIdRaw)
+  }
+
   await logAudit({
     action_by: gate.email,
     action_type: isSuper ? 'PAY' : 'CREATE',
@@ -179,7 +212,13 @@ export async function createExpense(formData: any) {
   })
 
   await refreshFinanceData()
-  return { ok: true as const, redirect: isSuper ? '/expenses' : '/requests#expenses' }
+  return {
+    ok: true as const,
+    redirect: isSuper ? '/expenses' : '/requests#expenses',
+    message: isSuper
+      ? 'Expense recorded on the paid ledger.'
+      : 'Request submitted — super admin will review and reimburse.',
+  }
 }
 
 export async function approveExpense(expenseId: string, adminEmail?: string, paymentTransactionRef?: string) {
