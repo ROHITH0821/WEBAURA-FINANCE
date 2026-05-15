@@ -2,10 +2,18 @@
 
 import { useState, useEffect } from 'react'
 import * as navigation from 'next/navigation'
-import { ArrowLeft, Save, IndianRupee, Tag, FileText, Loader2, Briefcase } from 'lucide-react'
+import { ArrowLeft, Save, IndianRupee, Tag, FileText, Loader2, Briefcase, CheckCircle2 } from 'lucide-react'
 import { submitExpenseRequest } from '@/lib/expense-actions'
 
 type ProjectOption = { id: string; label: string }
+
+const EMPTY_FORM = {
+  amount: '',
+  spent_on: '',
+  category: 'miscellaneous',
+  transaction_ref: '',
+  project_id: '',
+}
 
 export default function NewExpensePage() {
   const router = typeof navigation.useRouter === 'function' ? navigation.useRouter() : null
@@ -15,14 +23,9 @@ export default function NewExpensePage() {
   const [projects, setProjects] = useState<ProjectOption[]>([])
   const [projectsError, setProjectsError] = useState('')
   const [role, setRole] = useState<'super_admin' | 'admin' | 'founder' | null>(null)
-  const [formData, setFormData] = useState({
-    amount: '',
-    spent_on: '',
-    category: 'miscellaneous',
-    transaction_ref: '',
-    project_id: '',
-  })
+  const [formData, setFormData] = useState(EMPTY_FORM)
   const [error, setError] = useState('')
+  const [success, setSuccess] = useState<string | null>(null)
 
   useEffect(() => {
     let cancelled = false
@@ -56,10 +59,17 @@ export default function NewExpensePage() {
     }
   }, [])
 
+  useEffect(() => {
+    if (!success) return
+    const t = window.setTimeout(() => setSuccess(null), 12000)
+    return () => window.clearTimeout(t)
+  }, [success])
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setLoading(true)
     setError('')
+    setSuccess(null)
 
     try {
       const res = await submitExpenseRequest({
@@ -68,9 +78,10 @@ export default function NewExpensePage() {
       })
       if (res?.error) throw new Error(res.error)
       if (res?.ok) {
-        const dest = res.redirectTo || '/requests#expenses'
-        router?.push(dest)
+        setFormData(EMPTY_FORM)
+        setSuccess(res.message || 'Request submitted successfully.')
         router?.refresh()
+        window.scrollTo({ top: 0, behavior: 'smooth' })
         return
       }
       throw new Error('Unexpected response from server. Try again.')
@@ -106,7 +117,27 @@ export default function NewExpensePage() {
         </div>
       </div>
 
-      <div className="mx-auto w-full min-w-0 max-w-3xl overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
+      {success ? (
+        <div
+          role="status"
+          className="mx-auto flex max-w-3xl items-start gap-3 rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-4 sm:px-6 sm:py-5"
+        >
+          <CheckCircle2 className="mt-0.5 h-5 w-5 shrink-0 text-emerald-600" aria-hidden />
+          <div className="min-w-0 flex-1">
+            <p className="text-[10px] font-black uppercase tracking-[0.2em] text-emerald-800">Submitted successfully</p>
+            <p className="mt-1 text-sm font-semibold leading-snug text-emerald-950">{success}</p>
+            <p className="mt-2 text-[10px] font-bold uppercase tracking-widest text-emerald-700/90">
+              Form cleared — you can submit another request below.
+            </p>
+          </div>
+        </div>
+      ) : null}
+
+      <div
+        className={`mx-auto w-full min-w-0 max-w-3xl overflow-hidden rounded-2xl border bg-white shadow-sm transition-colors ${
+          success ? 'border-emerald-200 ring-2 ring-emerald-100' : 'border-slate-200'
+        }`}
+      >
         <form onSubmit={handleSubmit} className="space-y-6 p-4 sm:space-y-8 sm:p-8 md:p-10">
           <div className="space-y-3">
             <label className="ml-1 text-[10px] font-black uppercase tracking-[0.2em] text-slate-400">What you spent on</label>

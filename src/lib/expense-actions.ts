@@ -120,6 +120,8 @@ export async function submitExpenseRequest(formData: {
   refreshAfterExpense()
   return {
     ok: true as const,
-    redirectTo: isSuper ? '/expenses' : '/requests#expenses',
+    message: isSuper
+      ? 'Expense recorded on the paid ledger.'
+      : 'Request submitted successfully. Super admin will review and reimburse.',
   }
 }
