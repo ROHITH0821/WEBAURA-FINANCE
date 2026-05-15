@@ -72,42 +72,33 @@ export default async function DashboardPage() {
         </p>
       </div>
 
-      <div className="grid min-w-0 grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-5 lg:gap-6">
-        {stats.map((stat, index) => {
-          const lastOdd = stats.length % 2 === 1 && index === stats.length - 1
-          return (
+      <div className="grid min-w-0 grid-cols-2 gap-2 sm:grid-cols-3 sm:gap-2.5 md:gap-3 lg:grid-cols-5 lg:gap-3">
+        {stats.map((stat) => (
+          <div
+            key={stat.name}
+            className="glass-card group flex min-h-0 min-w-0 flex-col touch-manipulation p-2.5 transition-colors duration-200 hover:border-slate-900 sm:p-3"
+          >
             <div
-              key={stat.name}
-              className={`glass-card group min-w-0 touch-manipulation p-3.5 transition-colors duration-200 hover:border-slate-900 sm:p-5 md:p-8 ${
-                lastOdd
-                  ? 'col-span-2 w-[calc((100%-0.75rem)/2)] max-w-full justify-self-center lg:col-span-1 lg:w-full lg:justify-self-stretch'
-                  : ''
-              }`}
+              className={`mb-1.5 inline-flex w-fit rounded-lg border border-transparent p-1.5 transition-colors group-hover:border-current sm:mb-2 sm:p-2 ${stat.bg} ${stat.color}`}
             >
-              <div className="mb-3 flex justify-between sm:mb-4 md:mb-6">
-                <div
-                  className={`rounded-xl border border-transparent p-2.5 transition-colors group-hover:border-current sm:rounded-2xl sm:p-3 md:p-4 ${stat.bg} ${stat.color}`}
-                >
-                  <stat.icon className="h-3.5 w-3.5 sm:h-4 sm:w-4 md:h-5 md:w-5" aria-hidden />
-                </div>
-              </div>
-              <div className="min-w-0">
-                <p className="mb-0.5 truncate text-[8px] font-black uppercase tracking-[0.14em] text-slate-400 sm:mb-1 sm:text-[9px] sm:tracking-[0.18em] md:mb-2 md:text-[10px] md:tracking-[0.2em]">
-                  {stat.name}
-                </p>
-                <h3 className="break-words text-lg font-black tabular-nums tracking-tight text-slate-900 sm:text-xl md:text-2xl lg:text-3xl">
-                  {formatCurrency(stat.value)}
-                </h3>
-              </div>
+              <stat.icon className="h-3 w-3 sm:h-3.5 sm:w-3.5" aria-hidden />
             </div>
-          )
-        })}
+            <div className="min-w-0 flex-1">
+              <p className="mb-0.5 line-clamp-2 text-[7px] font-black uppercase leading-tight tracking-[0.12em] text-slate-400 sm:text-[8px] md:text-[9px]">
+                {stat.name}
+              </p>
+              <p className="break-words text-sm font-black tabular-nums leading-tight tracking-tight text-slate-900 sm:text-base lg:text-lg">
+                {formatCurrency(stat.value)}
+              </p>
+            </div>
+          </div>
+        ))}
       </div>
 
-      <div className="grid min-w-0 grid-cols-1 gap-4 sm:gap-6 lg:grid-cols-3 lg:gap-8">
-        <div className="glass-card min-w-0 bg-white p-4 sm:p-6 md:p-8 lg:col-span-2">
-          <div className="mb-6 flex flex-col gap-3 sm:mb-8 sm:flex-row sm:items-center sm:justify-between md:mb-10">
-            <h3 className="text-base font-bold uppercase tracking-tight text-slate-900 md:text-lg lg:text-xl">
+      <div className="grid min-w-0 grid-cols-1 gap-3 sm:gap-5 lg:grid-cols-3 lg:gap-6">
+        <div className="glass-card min-w-0 bg-white p-3 sm:p-5 md:p-6 lg:col-span-2">
+          <div className="mb-4 flex flex-col gap-2 sm:mb-5 sm:flex-row sm:items-center sm:justify-between md:mb-6">
+            <h3 className="text-sm font-bold uppercase tracking-tight text-slate-900 sm:text-base md:text-lg">
               Revenue vs Expenses
             </h3>
             <div className="flex gap-4 sm:gap-6">
@@ -121,7 +112,7 @@ export default async function DashboardPage() {
               </div>
             </div>
           </div>
-          <div className="h-56 w-full rounded-xl border border-slate-200 bg-slate-50/50 p-3 sm:h-64 sm:rounded-2xl sm:p-4 md:h-80 md:p-6">
+          <div className="h-44 w-full rounded-xl border border-slate-200 bg-slate-50/50 p-3 sm:h-52 md:h-64 md:p-4">
             <div className="flex h-full flex-col justify-end gap-3">
               {statsData.totalRevenue === 0 && statsData.totalExpenses === 0 ? (
                 <div className="flex h-full items-center justify-center text-slate-400 text-xs font-bold uppercase tracking-[0.2em]">
@@ -156,14 +147,14 @@ export default async function DashboardPage() {
           </div>
         </div>
 
-        <div className="glass-card relative min-w-0 overflow-hidden bg-white p-4 sm:p-6 md:p-8">
-          <div className="absolute top-0 right-0 p-4 opacity-5">
-            <ShieldCheck className="w-16 md:w-24 h-16 md:h-24 text-slate-900" />
+        <div className="glass-card relative min-w-0 overflow-hidden bg-white p-3 sm:p-5 md:p-6">
+          <div className="absolute top-0 right-0 p-3 opacity-5">
+            <ShieldCheck className="h-14 w-14 text-slate-900 md:h-20 md:w-20" />
           </div>
-          <h3 className="text-lg md:text-xl font-bold text-slate-900 mb-6 md:mb-8 uppercase tracking-tight relative z-10">
+          <h3 className="relative z-10 mb-4 text-sm font-bold uppercase tracking-tight text-slate-900 sm:mb-5 sm:text-base md:text-lg">
             Integrity Alerts
           </h3>
-          <div className="space-y-4 md:space-y-6 relative z-10">
+          <div className="relative z-10 space-y-3 sm:space-y-4">
             {(auditLogs || []).length > 0 ? (
               auditLogs?.map((log) => (
                 <Link
