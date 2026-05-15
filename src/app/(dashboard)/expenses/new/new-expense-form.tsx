@@ -1,16 +1,17 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { ArrowLeft, Save, IndianRupee, Tag, FileText, Loader2, Briefcase } from 'lucide-react'
-import { createExpense } from '@/lib/actions'
+import { createExpense, getProjectsForExpenseForm, type ExpenseFormProjectOption } from '@/lib/actions'
 
-export type NewExpenseProjectOption = { id: string; label: string }
-
-export default function NewExpenseForm({ projects }: { projects: NewExpenseProjectOption[] }) {
+export default function NewExpenseForm() {
   const router = useRouter()
 
   const [loading, setLoading] = useState(false)
+  const [projectsLoading, setProjectsLoading] = useState(true)
+  const [projects, setProjects] = useState<ExpenseFormProjectOption[]>([])
+  const [projectsError, setProjectsError] = useState('')
   const [formData, setFormData] = useState({
     amount: '',
     spent_on: '',
@@ -19,6 +20,26 @@ export default function NewExpenseForm({ projects }: { projects: NewExpenseProje
     project_id: '',
   })
   const [error, setError] = useState('')
+
+  useEffect(() => {
+    let cancelled = false
+    ;(async () => {
+      setProjectsLoading(true)
+      setProjectsError('')
+      const res = await getProjectsForExpenseForm()
+      if (cancelled) return
+      if (res.ok) {
+        setProjects(res.projects)
+      } else {
+        setProjects([])
+        setProjectsError(res.error || 'Could not load projects')
+      }
+      setProjectsLoading(false)
+    })()
+    return () => {
+      cancelled = true
+    }
+  }, [])
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -36,6 +57,7 @@ export default function NewExpenseForm({ projects }: { projects: NewExpenseProje
         router.refresh()
         return
       }
+      throw new Error('Unexpected response from server. Try again.')
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : 'Failed to request reimbursement'
       setError(msg)
@@ -49,7 +71,7 @@ export default function NewExpenseForm({ projects }: { projects: NewExpenseProje
       <div className="flex min-w-0 items-start gap-3 sm:gap-4">
         <button
           type="button"
-          onClick={() => router?.back()}
+          onClick={() => router.back()}
           className="mt-0.5 shrink-0 rounded-full p-2 text-slate-400 transition-colors hover:bg-slate-100 hover:text-slate-900 touch-manipulation"
         >
           <ArrowLeft className="h-5 w-5" />
@@ -128,9 +150,12 @@ export default function NewExpenseForm({ projects }: { projects: NewExpenseProje
               <select
                 value={formData.project_id}
                 onChange={(e) => setFormData({ ...formData, project_id: e.target.value })}
-                className="box-border min-w-0 w-full max-w-full cursor-pointer appearance-none rounded-xl border border-slate-200 bg-slate-50 py-4 pl-12 pr-10 text-sm font-bold text-slate-900 outline-none transition-colors focus:border-slate-900 sm:pr-12"
+                disabled={projectsLoading}
+                className="box-border min-w-0 w-full max-w-full cursor-pointer appearance-none rounded-xl border border-slate-200 bg-slate-50 py-4 pl-12 pr-10 text-sm font-bold text-slate-900 outline-none transition-colors focus:border-slate-900 disabled:opacity-60 sm:pr-12"
               >
-                <option value="">Not linked to a project</option>
+                <option value="">
+                  {projectsLoading ? 'Loading projects…' : 'Not linked to a project'}
+                </option>
                 {projects.map((p) => (
                   <option key={p.id} value={p.id}>
                     {p.label}
@@ -138,9 +163,15 @@ export default function NewExpenseForm({ projects }: { projects: NewExpenseProje
                 ))}
               </select>
             </div>
-            <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">
-              Link only when this spend should reduce that project&apos;s net.
-            </p>
+            {projectsError ? (
+              <p className="text-[10px] font-bold text-amber-700">
+                {projectsError} — you can still submit without a project.
+              </p>
+            ) : (
+              <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">
+                Link only when this spend should reduce that project&apos;s net.
+              </p>
+            )}
           </div>
 
           <div className="space-y-3">
@@ -169,7 +200,7 @@ export default function NewExpenseForm({ projects }: { projects: NewExpenseProje
           <div className="flex min-w-0 flex-col gap-3 border-t border-slate-100 pt-6 sm:flex-row sm:gap-4 sm:pt-8">
             <button
               type="button"
-              onClick={() => router?.back()}
+              onClick={() => router.back()}
               className="order-2 w-full min-w-0 touch-manipulation rounded-xl border border-slate-200 py-4 text-[10px] font-black uppercase tracking-[0.2em] text-slate-500 transition-colors hover:bg-slate-50 hover:text-slate-900 sm:order-1 sm:flex-1 sm:py-5"
             >
               Cancel

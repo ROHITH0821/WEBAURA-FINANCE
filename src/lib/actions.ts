@@ -82,6 +82,43 @@ export async function createProject(formData: any) {
   redirect(`/projects/${data.id}`)
 }
 
+export type ExpenseFormProjectOption = { id: string; label: string }
+
+/** Projects list for the expense request form (service role; any active admin/founder). */
+export async function getProjectsForExpenseForm(): Promise<
+  { ok: true; projects: ExpenseFormProjectOption[] } | { ok: false; error: string; projects: [] }
+> {
+  const gate = await requireActiveAdmin()
+  if (!gate.ok) return { ok: false, error: gate.error, projects: [] }
+
+  try {
+    const supabase = createStaticClient()
+    const { data, error } = await supabase
+      .from('projects')
+      .select('id, project_code, client_name, project_name, name')
+      .order('created_at', { ascending: false })
+
+    if (error) {
+      console.error('getProjectsForExpenseForm:', error)
+      return { ok: false, error: error.message, projects: [] }
+    }
+
+    const projects: ExpenseFormProjectOption[] = (data || []).map((p: any) => {
+      const title = String(p.project_name || p.name || '').trim()
+      const parts = [p.project_code, p.client_name, title].filter(Boolean)
+      return {
+        id: String(p.id),
+        label: parts.length ? parts.join(' · ') : 'Project',
+      }
+    })
+
+    return { ok: true, projects }
+  } catch (e: any) {
+    console.error('getProjectsForExpenseForm:', e)
+    return { ok: false, error: e?.message || 'Could not load projects', projects: [] }
+  }
+}
+
 export async function createExpense(formData: any) {
   const gate = await requireActiveAdmin()
   if (!gate.ok) return { error: gate.error }
