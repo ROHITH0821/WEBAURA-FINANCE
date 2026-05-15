@@ -45,6 +45,16 @@ export default function ExpensesFilters(props: {
     [pathname, router]
   )
 
+  /** Normal admin: always org-wide URL (matches server effectiveView). */
+  useEffect(() => {
+    if (!props.lockOrgWideView) return
+    const next = new URLSearchParams(spKey)
+    if (next.get('view') === 'mine') {
+      next.set('view', 'all')
+      applyQuery(next, 'replace')
+    }
+  }, [props.lockOrgWideView, spKey, applyQuery])
+
   /** Base params from current URL, always overlay latest search draft so filter changes never drop pending text. */
   const baseParams = useCallback(() => {
     const next = new URLSearchParams(sp.toString())

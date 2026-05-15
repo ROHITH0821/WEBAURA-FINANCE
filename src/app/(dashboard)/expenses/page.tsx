@@ -1,8 +1,14 @@
 import Link from 'next/link'
+import { redirect } from 'next/navigation'
 import { Plus, Filter } from 'lucide-react'
 import { formatCurrency } from '@/lib/utils'
-import { activeFinanceRole } from '@/lib/finance-role'
-import { createClient, createStaticClient } from '@/lib/supabaseServer'
+import { fetchAdminUserByEmail } from '@/lib/admin-user-lookup'
+import {
+  canViewOrgExpenseLedger,
+  isSuperAdminRole,
+  resolveFinanceRole,
+} from '@/lib/finance-role'
+import { createClient } from '@/lib/supabaseServer'
 import { getExpenseRequests, getFounders } from '@/lib/data'
 import ExpenseRow from '@/components/ExpenseRow'
 import ExpensesFilters from './expenses-filters'
@@ -16,15 +22,14 @@ export default async function ExpensesPage({
 }) {
   const sp = (await searchParams) || {}
   const supabase = await createClient()
-  const admin = createStaticClient()
 
   const {
     data: { user },
   } = await supabase.auth.getUser()
   const myEmail = String(user?.email || '').trim().toLowerCase()
 
-  const [{ data: meRow }, expenses, foundersData] = await Promise.all([
-    admin.from('admin_users').select('email, role, is_active').eq('email', myEmail).maybeSingle(),
+  const [meRow, expenses, foundersData] = await Promise.all([
+    fetchAdminUserByEmail(myEmail),
     getExpenseRequests(),
     getFounders(),
   ])
@@ -36,13 +41,25 @@ export default async function ExpensesPage({
       role: String(f.role || ''),
     }))
 
-  const role = activeFinanceRole(meRow)
-  const isSuperAdmin = role === 'super_admin'
+  const role = resolveFinanceRole(meRow, myEmail, founders)
+  const isSuperAdmin = isSuperAdminRole(role)
   const isNormalAdmin = role === 'admin'
   const isFounder = role === 'founder'
   /** Same org-wide ledger as super admin (All view). */
-  const canViewOrgLedger = isSuperAdmin || isNormalAdmin
+  const canViewOrgLedger = canViewOrgExpenseLedger(role)
   const isSuperApprover = isSuperAdmin
+
+  if (isNormalAdmin && String(sp.view || '') === 'mine') {
+    const qs = new URLSearchParams()
+    qs.set('view', 'all')
+    const status = Array.isArray(sp.status) ? sp.status[0] : sp.status
+    const founder = Array.isArray(sp.founder) ? sp.founder[0] : sp.founder
+    const q = Array.isArray(sp.q) ? sp.q[0] : sp.q
+    if (status) qs.set('status', String(status))
+    if (founder) qs.set('founder', String(founder))
+    if (q) qs.set('q', String(q))
+    redirect(`/expenses?${qs.toString()}`)
+  }
   const defaultStatusFilter = 'all'
 
   const rawView = sp.view
