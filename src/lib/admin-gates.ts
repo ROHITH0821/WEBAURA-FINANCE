@@ -1,7 +1,8 @@
 'use server'
 
-import { createClient, createStaticClient } from '@/lib/supabaseServer'
-import type { FinanceRole } from '@/lib/finance-role'
+import { fetchAdminUserByEmail } from '@/lib/admin-user-lookup'
+import { activeFinanceRole, type FinanceRole } from '@/lib/finance-role'
+import { createClient } from '@/lib/supabaseServer'
 
 export type { FinanceRole } from '@/lib/finance-role'
 export type GateOk = { ok: true; email: string; role: FinanceRole }
@@ -9,7 +10,6 @@ export type GateErr = { ok: false; error: string }
 
 export async function requireActiveAdmin(): Promise<GateOk | GateErr> {
   const supabase = await createClient()
-  const admin = createStaticClient()
 
   const {
     data: { user },
@@ -18,16 +18,12 @@ export async function requireActiveAdmin(): Promise<GateOk | GateErr> {
   const email = String(user?.email || '').toLowerCase()
   if (!email) return { ok: false, error: 'Unauthorized' }
 
-  const { data: row, error } = await admin
-    .from('admin_users')
-    .select('email, role, is_active')
-    .eq('email', email)
-    .maybeSingle()
-
-  if ((error as any)?.code === '42P01') return { ok: false, error: 'Missing DB table `admin_users`.' }
+  const row = await fetchAdminUserByEmail(email)
   if (!row || row.is_active === false) return { ok: false, error: 'Forbidden' }
 
-  const role = (row.role === 'super_admin' ? 'super_admin' : row.role === 'admin' ? 'admin' : 'founder') as any
+  const role = activeFinanceRole(row)
+  if (!role) return { ok: false, error: 'Forbidden' }
+
   return { ok: true, email, role }
 }
 

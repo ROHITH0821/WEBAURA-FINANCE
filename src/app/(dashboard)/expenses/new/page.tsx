@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import * as navigation from 'next/navigation'
+import Link from 'next/link'
 import { ArrowLeft, Save, IndianRupee, Tag, FileText, Loader2, Briefcase, CheckCircle2 } from 'lucide-react'
 import { submitExpenseRequest } from '@/lib/expense-actions'
 
@@ -92,12 +93,13 @@ export default function NewExpensePage() {
     }
   }
 
-  const subtitle =
-    role === 'super_admin'
-      ? 'Logs straight to the paid ledger — five fields only'
-      : role === 'admin' || role === 'founder'
-        ? 'Sent to super admin for approval and reimbursement — five fields only'
-        : 'Five fields — what you spent, amount, category, optional project, proof'
+  const isSuperAdmin = role === 'super_admin'
+
+  const subtitle = isSuperAdmin
+    ? 'Recorded as paid immediately — no approval queue'
+    : role === 'admin' || role === 'founder'
+      ? 'Sent to super admin for approval and reimbursement — five fields only'
+      : 'Five fields — what you spent, amount, category, optional project, proof'
 
   return (
     <div className="mx-auto w-full min-w-0 max-w-full space-y-6 sm:space-y-10">
@@ -110,7 +112,9 @@ export default function NewExpensePage() {
           <ArrowLeft className="h-5 w-5" />
         </button>
         <div className="min-w-0 flex-1">
-          <h2 className="text-2xl font-black uppercase tracking-tight text-slate-900 sm:text-3xl">Expense request</h2>
+          <h2 className="text-2xl font-black uppercase tracking-tight text-slate-900 sm:text-3xl">
+            {isSuperAdmin ? 'Log expense' : 'Expense request'}
+          </h2>
           <p className="mt-1 text-[9px] font-black uppercase leading-relaxed tracking-[0.18em] text-slate-500 sm:text-[10px] sm:tracking-[0.2em]">
             {subtitle}
           </p>
@@ -124,11 +128,23 @@ export default function NewExpensePage() {
         >
           <CheckCircle2 className="mt-0.5 h-5 w-5 shrink-0 text-emerald-600" aria-hidden />
           <div className="min-w-0 flex-1">
-            <p className="text-[10px] font-black uppercase tracking-[0.2em] text-emerald-800">Submitted successfully</p>
+            <p className="text-[10px] font-black uppercase tracking-[0.2em] text-emerald-800">
+              {isSuperAdmin ? 'Recorded on ledger' : 'Submitted successfully'}
+            </p>
             <p className="mt-1 text-sm font-semibold leading-snug text-emerald-950">{success}</p>
             <p className="mt-2 text-[10px] font-bold uppercase tracking-widest text-emerald-700/90">
-              Form cleared — you can submit another request below.
+              {isSuperAdmin
+                ? 'Form cleared — log another expense below or view the team ledger.'
+                : 'Form cleared — you can submit another request below.'}
             </p>
+            {isSuperAdmin ? (
+              <Link
+                href="/expenses"
+                className="mt-3 inline-block text-[10px] font-black uppercase tracking-widest text-emerald-800 underline underline-offset-2"
+              >
+                View expense tracker →
+              </Link>
+            ) : null}
           </div>
         </div>
       ) : null}
@@ -227,7 +243,7 @@ export default function NewExpensePage() {
 
           <div className="space-y-3">
             <label className="ml-1 text-[10px] font-black uppercase tracking-[0.2em] text-slate-400">
-              Proof — UPI txn ID or invoice number
+              {isSuperAdmin ? 'Payment / proof reference' : 'Proof — UPI txn ID or invoice number'}
             </label>
             <input
               type="text"
@@ -238,7 +254,9 @@ export default function NewExpensePage() {
               className="box-border min-w-0 w-full max-w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-4 text-sm font-bold text-slate-900 outline-none transition-colors focus:border-slate-900 sm:px-5"
             />
             <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">
-              Required so finance can verify before reimbursing.
+              {isSuperAdmin
+                ? 'UTR / UPI id or invoice number — saved as payment reference on the ledger.'
+                : 'Required so finance can verify before reimbursing.'}
             </p>
           </div>
 
@@ -262,7 +280,7 @@ export default function NewExpensePage() {
               className="order-1 flex w-full min-w-0 touch-manipulation items-center justify-center gap-2 rounded-xl bg-slate-900 py-4 text-[10px] font-black uppercase tracking-[0.2em] text-white shadow-lg shadow-slate-200/80 transition-colors hover:bg-slate-800 disabled:opacity-60 sm:order-2 sm:flex-1 sm:gap-3 sm:py-5"
             >
               {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
-              {loading ? 'Submitting…' : 'Submit request'}
+              {loading ? 'Saving…' : isSuperAdmin ? 'Record on ledger' : 'Submit request'}
             </button>
           </div>
         </form>

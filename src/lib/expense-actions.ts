@@ -2,7 +2,7 @@
 
 import { revalidatePath, revalidateTag } from 'next/cache'
 import { createStaticClient } from '@/lib/supabaseServer'
-import { requireActiveAdmin } from '@/lib/admin-gates'
+import { requireActiveAdmin, requireSuperAdmin } from '@/lib/admin-gates'
 
 const revalidate = (tag: string) => (revalidateTag as any)(tag)
 
@@ -76,23 +76,26 @@ export async function submitExpenseRequest(formData: {
   const proofRef = String(formData.transaction_ref || '').trim()
   if (!proofRef) return { error: 'Proof / transaction reference is required.' }
 
-  const isSuper = gate.role === 'super_admin'
+  const superGate = await requireSuperAdmin()
+  const isSuper = superGate.ok
+  const actorEmail = isSuper ? superGate.email : gate.email
   const projectIdRaw = String(formData.project_id || '').trim()
+  const paidAt = new Date().toISOString()
 
   const { data, error } = await supabase
     .from('expense_requests')
     .insert({
-      requested_by: gate.email,
+      requested_by: actorEmail,
       amount,
       spent_on: spentOn,
       category: formData.category,
       project_id: projectIdRaw || null,
       transaction_ref: proofRef,
-      request_date: new Date().toISOString().slice(0, 10),
+      request_date: paidAt.slice(0, 10),
       status: isSuper ? 'paid' : 'pending',
-      approved_by: isSuper ? gate.email : null,
-      approved_at: isSuper ? new Date().toISOString() : null,
-      paid_at: isSuper ? new Date().toISOString() : null,
+      approved_by: isSuper ? actorEmail : null,
+      approved_at: isSuper ? paidAt : null,
+      paid_at: isSuper ? paidAt : null,
       payment_transaction_ref: isSuper ? proofRef : null,
     })
     .select()
@@ -108,7 +111,7 @@ export async function submitExpenseRequest(formData: {
   }
 
   await logAudit({
-    action_by: gate.email,
+    action_by: actorEmail,
     action_type: isSuper ? 'PAY' : 'CREATE',
     record_type: 'expense_requests',
     record_id: String((data as any)?.id || ''),
@@ -120,8 +123,9 @@ export async function submitExpenseRequest(formData: {
   refreshAfterExpense()
   return {
     ok: true as const,
+    directLedger: isSuper,
     message: isSuper
-      ? 'Expense recorded on the paid ledger.'
+      ? 'Expense recorded on the paid ledger — visible immediately under Expenses.'
       : 'Request submitted successfully. Super admin will review and reimburse.',
   }
 }

@@ -1,4 +1,6 @@
 import { NextResponse } from 'next/server'
+import { fetchAdminUserByEmail, syncFinanceAdminUserRole } from '@/lib/admin-user-lookup'
+import { activeFinanceRole } from '@/lib/finance-role'
 import { createClient, createStaticClient } from '@/lib/supabaseServer'
 
 const NO_STORE = { 'Cache-Control': 'no-store, private, must-revalidate' } as const
@@ -27,24 +29,18 @@ export async function GET() {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401, headers: NO_STORE })
     }
 
-    const admin = createStaticClient()
-    const { data: me, error: meErr } = await admin
-      .from('admin_users')
-      .select('role, is_active')
-      .eq('email', email)
-      .maybeSingle()
-
-    if (meErr) {
-      console.error('expense-form/context admin_users:', meErr)
-      return NextResponse.json({ error: meErr.message }, { status: 500, headers: NO_STORE })
-    }
-    if (!me?.is_active) {
+    await syncFinanceAdminUserRole(email)
+    const me = await fetchAdminUserByEmail(email)
+    if (!me || me.is_active === false) {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403, headers: NO_STORE })
     }
 
-    const role =
-      me.role === 'super_admin' ? 'super_admin' : me.role === 'admin' ? 'admin' : 'founder'
+    const role = activeFinanceRole(me)
+    if (!role) {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403, headers: NO_STORE })
+    }
 
+    const admin = createStaticClient()
     const primary = await admin
       .from('projects')
       .select('id, project_code, client_name, project_name, name')

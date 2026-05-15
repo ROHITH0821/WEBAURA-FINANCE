@@ -148,7 +148,7 @@ export default async function ExpensesPage({
           className="px-8 py-4 rounded-2xl bg-slate-900 text-white text-[10px] md:text-xs font-black uppercase tracking-widest hover:bg-slate-800 transition-all shadow-2xl shadow-slate-200 flex items-center gap-3"
         >
           <Plus className="w-4 h-4" />
-          Submit expense request
+          {isSuperAdmin ? 'Log expense' : 'Submit expense request'}
         </Link>
       </div>
 
