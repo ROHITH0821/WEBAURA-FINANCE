@@ -7,6 +7,8 @@ import * as navigation from 'next/navigation'
 export default function ExpensesFilters(props: {
   /** Super admin + normal admin: org-wide ledger filters */
   canViewTeamLedger: boolean
+  /** Normal admin: locked to org-wide view (same rows as super admin All). */
+  lockOrgWideView?: boolean
   teamMembers: { email: string; name: string; role?: string }[]
   current: { view: 'all' | 'mine'; status: string; founder: string; q: string }
 }) {
@@ -81,28 +83,33 @@ export default function ExpensesFilters(props: {
   return (
     <div className="flex w-full min-w-0 flex-col gap-4 lg:flex-row lg:flex-wrap lg:items-end lg:justify-between">
       <div className="flex flex-wrap items-end gap-3">
-        {props.canViewTeamLedger && (
-          <div className="flex items-center gap-2 rounded-2xl border border-slate-200 bg-white p-1">
-            <button
-              type="button"
-              onClick={() => setParam('view', 'mine')}
-              className={`px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-colors ${
-                props.current.view === 'mine' ? 'bg-slate-900 text-white' : 'text-slate-500 hover:text-slate-900'
-              }`}
-            >
-              Mine
-            </button>
-            <button
-              type="button"
-              onClick={() => setParam('view', 'all')}
-              className={`px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-colors ${
-                props.current.view === 'all' ? 'bg-slate-900 text-white' : 'text-slate-500 hover:text-slate-900'
-              }`}
-            >
-              All
-            </button>
-          </div>
-        )}
+        {props.canViewTeamLedger &&
+          (props.lockOrgWideView ? (
+            <div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-2.5">
+              <p className="text-[9px] font-black uppercase tracking-widest text-slate-600">Team ledger (all)</p>
+            </div>
+          ) : (
+            <div className="flex items-center gap-2 rounded-2xl border border-slate-200 bg-white p-1">
+              <button
+                type="button"
+                onClick={() => setParam('view', 'mine')}
+                className={`px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-colors ${
+                  props.current.view === 'mine' ? 'bg-slate-900 text-white' : 'text-slate-500 hover:text-slate-900'
+                }`}
+              >
+                Mine
+              </button>
+              <button
+                type="button"
+                onClick={() => setParam('view', 'all')}
+                className={`px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-colors ${
+                  props.current.view === 'all' ? 'bg-slate-900 text-white' : 'text-slate-500 hover:text-slate-900'
+                }`}
+              >
+                All
+              </button>
+            </div>
+          ))}
 
         {props.canViewTeamLedger && props.current.view === 'all' && (
           <div>
@@ -131,7 +138,6 @@ export default function ExpensesFilters(props: {
           >
             <option value="paid">paid</option>
             <option value="pending">pending</option>
-            <option value="rejected">rejected</option>
             <option value="all">all</option>
           </select>
         </div>

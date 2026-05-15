@@ -1,7 +1,7 @@
 import Link from 'next/link'
 import { Plus, Filter } from 'lucide-react'
 import { formatCurrency } from '@/lib/utils'
-import { createClient } from '@/lib/supabaseServer'
+import { createClient, createStaticClient } from '@/lib/supabaseServer'
 import { getExpenseRequests, getFounders } from '@/lib/data'
 import ExpenseRow from '@/components/ExpenseRow'
 import ExpensesFilters from './expenses-filters'
@@ -15,16 +15,17 @@ export default async function ExpensesPage({
 }) {
   const sp = (await searchParams) || {}
   const supabase = await createClient()
-  
-  // Use high-performance cached data
-  const [
-    { data: { user } },
-    expenses,
-    foundersData
-  ] = await Promise.all([
-    supabase.auth.getUser(),
+  const admin = createStaticClient()
+
+  const {
+    data: { user },
+  } = await supabase.auth.getUser()
+  const myEmail = String(user?.email || '').trim().toLowerCase()
+
+  const [{ data: meRow }, expenses, foundersData] = await Promise.all([
+    admin.from('admin_users').select('email, role, is_active').eq('email', myEmail).maybeSingle(),
     getExpenseRequests(),
-    getFounders()
+    getFounders(),
   ])
   const founders = (foundersData || [])
     .filter((f) => Boolean(f?.email))
@@ -34,32 +35,36 @@ export default async function ExpensesPage({
       role: String(f.role || ''),
     }))
 
-  const myEmail = String(user?.email || '').toLowerCase()
-  const me = founders.find((f) => f.email.toLowerCase() === myEmail)
-  const isFinanceStaff = me?.role === 'super_admin' || me?.role === 'admin'
-  const isSuperApprover = me?.role === 'super_admin'
-  const isNormalAdmin = me?.role === 'admin'
-  /** Finance staff + founders: show every status by default (pending lives here too, not only paid). */
+  const role = meRow?.is_active ? String(meRow.role || '') : ''
+  const isSuperAdmin = role === 'super_admin'
+  const isNormalAdmin = role === 'admin'
+  const isFounder = role === 'founder'
+  /** Same org-wide ledger as super admin (All view). */
+  const canViewOrgLedger = isSuperAdmin || isNormalAdmin
+  const isSuperApprover = isSuperAdmin
   const defaultStatusFilter = 'all'
 
   const rawView = sp.view
-  const viewParam = String((Array.isArray(rawView) ? rawView[0] : rawView) || (isFinanceStaff ? 'all' : 'mine'))
+  const viewParam = String((Array.isArray(rawView) ? rawView[0] : rawView) || (canViewOrgLedger ? 'all' : 'mine'))
   const statusParam = String(Array.isArray(sp.status) ? sp.status[0] : sp.status || defaultStatusFilter)
   const founderParam = String(Array.isArray(sp.founder) ? sp.founder[0] : sp.founder || '').toLowerCase()
   const searchParam = String(Array.isArray(sp.q) ? sp.q[0] : sp.q || '').toLowerCase()
 
-  /** Founders: own rows only. Admin + super admin: org-wide ledger (All / Mine toggle). */
-  const effectiveView =
-    me?.role === 'founder'
+  /** Founders: own only. Normal admin: always org-wide (matches super admin All). Super admin: All / Mine toggle. */
+  const effectiveView = isNormalAdmin
+    ? 'all'
+    : isFounder
       ? 'mine'
-      : isFinanceStaff
+      : canViewOrgLedger
         ? viewParam === 'mine'
           ? 'mine'
           : 'all'
         : 'mine'
   const effectiveFounder = (effectiveView === 'all' && founderParam) ? founderParam : (effectiveView === 'mine' ? myEmail : '')
 
-  const filteredExpenses = expenses.filter((e) => {
+  const ledgerExpenses = expenses.filter((e) => String(e.status || '').toLowerCase() !== 'rejected')
+
+  const filteredExpenses = ledgerExpenses.filter((e) => {
     const st = String(e.status || '').toLowerCase()
     const who = String(e.requested_by || '').toLowerCase()
     const desc = String(e.spent_on || '').toLowerCase()
@@ -86,7 +91,9 @@ export default async function ExpensesPage({
   })
 
   // Stats - using the full expenses list but filtered by base permissions for "ledger" feel
-  const baseLedger = isFinanceStaff ? expenses : expenses.filter(e => String(e.requested_by || '').toLowerCase() === myEmail)
+  const baseLedger = canViewOrgLedger
+    ? ledgerExpenses
+    : ledgerExpenses.filter((e) => String(e.requested_by || '').toLowerCase() === myEmail)
   const totalPaid = baseLedger
     .filter((e) => String(e.status || '').toLowerCase() === 'paid')
     .reduce((sum, e) => sum + Number(e.amount), 0)
@@ -98,7 +105,7 @@ export default async function ExpensesPage({
   const pendingCount = filteredExpenses.filter((e) => String(e.status || '').toLowerCase() === 'pending').length
 
   const isDefaultView =
-    effectiveView === (isFinanceStaff ? 'all' : 'mine') && statusParam === 'all' && !founderParam && !searchParam
+    effectiveView === (canViewOrgLedger ? 'all' : 'mine') && statusParam === 'all' && !founderParam && !searchParam
   const filtersActive = !isDefaultView
 
   const teamMembers = founders.filter((f) => ['founder', 'admin', 'super_admin'].includes(f.role))
@@ -109,9 +116,11 @@ export default async function ExpensesPage({
         <div>
           <h2 className="text-2xl md:text-3xl font-black tracking-tight text-slate-900 mb-2 uppercase">Expense Tracker</h2>
           <p className="text-slate-500 font-black uppercase tracking-[0.2em] text-[9px] md:text-[10px]">
-            {isNormalAdmin || isSuperApprover
-              ? 'Team-wide expense ledger — all founders & admins'
-              : me?.role === 'founder'
+            {canViewOrgLedger
+              ? isNormalAdmin
+                ? 'Same team ledger as super admin — all founders & admins'
+                : 'Team-wide expense ledger — all founders & admins'
+              : isFounder
                 ? 'Your reimbursement requests & paid expenses'
                 : 'Categorized expenditure & reimbursement logs'}
           </p>
@@ -161,7 +170,8 @@ export default async function ExpensesPage({
       <div className="glass-card min-w-0 overflow-hidden bg-white">
         <div className="border-b border-slate-100 p-4 md:p-8">
           <ExpensesFilters
-            canViewTeamLedger={isFinanceStaff}
+            canViewTeamLedger={canViewOrgLedger}
+            lockOrgWideView={isNormalAdmin}
             teamMembers={teamMembers}
             current={{
               view: effectiveView as 'all' | 'mine',
@@ -196,7 +206,7 @@ export default async function ExpensesPage({
                   <p className="text-[9px] font-bold uppercase tracking-widest text-slate-400">
                     {filtersActive
                       ? 'Try adjusting your filters or search query'
-                      : isFinanceStaff
+                      : canViewOrgLedger
                         ? 'No team expenses yet — submissions from founders and admins will appear here'
                         : 'Submit a request from Expenses or Requests — it will appear here'}
                   </p>

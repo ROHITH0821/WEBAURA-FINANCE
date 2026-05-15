@@ -146,22 +146,13 @@ export async function rejectExpenseRequestAction(expenseId: string, _adminEmail:
     return { ok: false, error: 'This request is not pending or was already processed.' }
   }
 
-  const { data, error } = await supabase
-    .from('expense_requests')
-    .update({
-      status: 'rejected',
-      approved_by: gate.email,
-      approved_at: new Date().toISOString(),
-      rejection_reason: why,
-    })
-    .eq('id', expenseId)
-    .eq('status', 'pending')
-    .select()
-    .maybeSingle()
-
-  if (error) return { ok: false, error: error.message }
-  if (!data) {
-    return { ok: false, error: 'Could not reject: it may have been updated already. Refresh the page.' }
+  const rejectedAt = new Date().toISOString()
+  const rejectedSnapshot = {
+    ...(before as Record<string, unknown>),
+    status: 'rejected',
+    approved_by: gate.email,
+    approved_at: rejectedAt,
+    rejection_reason: why,
   }
 
   await logAction({
@@ -170,9 +161,22 @@ export async function rejectExpenseRequestAction(expenseId: string, _adminEmail:
     record_type: 'expense_requests',
     record_id: expenseId,
     old_value: before,
-    new_value: data,
+    new_value: rejectedSnapshot,
     notes: why,
   })
+
+  const { data: removed, error } = await supabase
+    .from('expense_requests')
+    .delete()
+    .eq('id', expenseId)
+    .eq('status', 'pending')
+    .select('id')
+    .maybeSingle()
+
+  if (error) return { ok: false, error: error.message }
+  if (!removed) {
+    return { ok: false, error: 'Could not reject: it may have been updated already. Refresh the page.' }
+  }
 
   const requester = String((before as any).requested_by || '')
     .trim()

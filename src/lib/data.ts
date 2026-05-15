@@ -158,6 +158,7 @@ export const getExpenseRequests = unstable_cache(
     const { data, error } = await supabase
       .from('expense_requests')
       .select('*')
+      .neq('status', 'rejected')
       .order('request_date', { ascending: false })
 
     if (error) {
