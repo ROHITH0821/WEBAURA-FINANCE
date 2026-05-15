@@ -5,8 +5,9 @@ import { Search } from 'lucide-react'
 import * as navigation from 'next/navigation'
 
 export default function ExpensesFilters(props: {
-  isSuperAdmin: boolean
-  founders: { email: string; name: string }[]
+  /** Super admin + normal admin: org-wide ledger filters */
+  canViewTeamLedger: boolean
+  teamMembers: { email: string; name: string; role?: string }[]
   current: { view: 'all' | 'mine'; status: string; founder: string; q: string }
 }) {
   const router = typeof navigation.useRouter === 'function' ? navigation.useRouter() : null
@@ -16,9 +17,12 @@ export default function ExpensesFilters(props: {
   const [qDraft, setQDraft] = useState(() => props.current.q || '')
   const qDirtyRef = useRef(false)
 
-  const founderOptions = useMemo(() => {
-    return (props.founders || []).map((f) => ({ email: f.email.toLowerCase(), name: f.name }))
-  }, [props.founders])
+  const memberOptions = useMemo(() => {
+    return (props.teamMembers || []).map((f) => ({
+      email: f.email.toLowerCase(),
+      name: f.role === 'admin' ? `${f.name} (admin)` : f.name,
+    }))
+  }, [props.teamMembers])
 
   const spKey = sp.toString()
 
@@ -77,7 +81,7 @@ export default function ExpensesFilters(props: {
   return (
     <div className="flex w-full min-w-0 flex-col gap-4 lg:flex-row lg:flex-wrap lg:items-end lg:justify-between">
       <div className="flex flex-wrap items-end gap-3">
-        {props.isSuperAdmin && (
+        {props.canViewTeamLedger && (
           <div className="flex items-center gap-2 rounded-2xl border border-slate-200 bg-white p-1">
             <button
               type="button"
@@ -100,16 +104,16 @@ export default function ExpensesFilters(props: {
           </div>
         )}
 
-        {props.isSuperAdmin && props.current.view === 'all' && (
+        {props.canViewTeamLedger && props.current.view === 'all' && (
           <div>
-            <p className="text-[9px] font-black uppercase tracking-[0.25em] text-slate-400 ml-1 mb-2">Founder</p>
+            <p className="text-[9px] font-black uppercase tracking-[0.25em] text-slate-400 ml-1 mb-2">Team member</p>
             <select
               value={props.current.founder || ''}
               onChange={(e) => setParam('founder', e.target.value)}
               className="box-border min-w-0 w-full max-w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm font-bold text-slate-900 outline-none focus:border-slate-400 appearance-none sm:min-w-[220px]"
             >
-              <option value="">All founders</option>
-              {founderOptions.map((f) => (
+              <option value="">Everyone</option>
+              {memberOptions.map((f) => (
                 <option key={f.email} value={f.email}>
                   {f.name}
                 </option>

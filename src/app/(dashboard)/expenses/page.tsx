@@ -38,9 +38,9 @@ export default async function ExpensesPage({
   const me = founders.find((f) => f.email.toLowerCase() === myEmail)
   const isFinanceStaff = me?.role === 'super_admin' || me?.role === 'admin'
   const isSuperApprover = me?.role === 'super_admin'
-  /** Admins see the org ledger but cannot approve; default to all statuses so pending rows are visible. */
   const isNormalAdmin = me?.role === 'admin'
-  const defaultStatusFilter = isNormalAdmin ? 'all' : 'paid'
+  /** Finance staff + founders: show every status by default (pending lives here too, not only paid). */
+  const defaultStatusFilter = 'all'
 
   const rawView = sp.view
   const viewParam = String((Array.isArray(rawView) ? rawView[0] : rawView) || (isFinanceStaff ? 'all' : 'mine'))
@@ -48,8 +48,15 @@ export default async function ExpensesPage({
   const founderParam = String(Array.isArray(sp.founder) ? sp.founder[0] : sp.founder || '').toLowerCase()
   const searchParam = String(Array.isArray(sp.q) ? sp.q[0] : sp.q || '').toLowerCase()
 
+  /** Founders: own rows only. Admin + super admin: org-wide ledger (All / Mine toggle). */
   const effectiveView =
-    me?.role === 'founder' ? 'mine' : isFinanceStaff ? (viewParam === 'all' ? 'all' : 'mine') : 'mine'
+    me?.role === 'founder'
+      ? 'mine'
+      : isFinanceStaff
+        ? viewParam === 'mine'
+          ? 'mine'
+          : 'all'
+        : 'mine'
   const effectiveFounder = (effectiveView === 'all' && founderParam) ? founderParam : (effectiveView === 'mine' ? myEmail : '')
 
   const filteredExpenses = expenses.filter((e) => {
@@ -90,19 +97,24 @@ export default async function ExpensesPage({
 
   const pendingCount = filteredExpenses.filter((e) => String(e.status || '').toLowerCase() === 'pending').length
 
-  const isDefaultView = isFinanceStaff
-    ? isNormalAdmin
-      ? effectiveView === 'all' && statusParam === 'all' && !founderParam
-      : effectiveView === 'all' && statusParam === 'paid' && !founderParam
-    : statusParam === 'paid'
-  const filtersActive = !isDefaultView || searchParam !== ''
+  const isDefaultView =
+    effectiveView === (isFinanceStaff ? 'all' : 'mine') && statusParam === 'all' && !founderParam && !searchParam
+  const filtersActive = !isDefaultView
+
+  const teamMembers = founders.filter((f) => ['founder', 'admin', 'super_admin'].includes(f.role))
 
   return (
     <div className="mx-auto min-w-0 max-w-full space-y-6 md:space-y-10 motion-safe:animate-in motion-safe:fade-in motion-safe:duration-200">
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-end gap-4">
         <div>
           <h2 className="text-2xl md:text-3xl font-black tracking-tight text-slate-900 mb-2 uppercase">Expense Tracker</h2>
-          <p className="text-slate-500 font-black uppercase tracking-[0.2em] text-[9px] md:text-[10px]">Categorized expenditure & reimbursement logs</p>
+          <p className="text-slate-500 font-black uppercase tracking-[0.2em] text-[9px] md:text-[10px]">
+            {isNormalAdmin || isSuperApprover
+              ? 'Team-wide expense ledger — all founders & admins'
+              : me?.role === 'founder'
+                ? 'Your reimbursement requests & paid expenses'
+                : 'Categorized expenditure & reimbursement logs'}
+          </p>
         </div>
         <Link
           href="/expenses/new"
@@ -127,8 +139,10 @@ export default async function ExpensesPage({
             {effectiveView === 'mine'
               ? 'My Contribution'
               : effectiveFounder
-                ? 'Founder Contribution'
-                : 'All Founders'}
+                ? 'Member Contribution'
+                : isNormalAdmin
+                  ? 'Team Total'
+                  : 'All Team'}
           </p>
           <h3 className="break-words text-lg font-black tabular-nums tracking-tight text-slate-900 sm:text-xl md:text-2xl lg:text-3xl">
             {formatCurrency(filteredPaid)}
@@ -147,8 +161,8 @@ export default async function ExpensesPage({
       <div className="glass-card min-w-0 overflow-hidden bg-white">
         <div className="border-b border-slate-100 p-4 md:p-8">
           <ExpensesFilters
-            isSuperAdmin={isFinanceStaff}
-            founders={founders}
+            canViewTeamLedger={isFinanceStaff}
+            teamMembers={teamMembers}
             current={{
               view: effectiveView as 'all' | 'mine',
               status: statusParam,
@@ -182,7 +196,9 @@ export default async function ExpensesPage({
                   <p className="text-[9px] font-bold uppercase tracking-widest text-slate-400">
                     {filtersActive
                       ? 'Try adjusting your filters or search query'
-                      : 'Expenses you add will appear here'}
+                      : isFinanceStaff
+                        ? 'No team expenses yet — submissions from founders and admins will appear here'
+                        : 'Submit a request from Expenses or Requests — it will appear here'}
                   </p>
                 </div>
                 {filtersActive && (
