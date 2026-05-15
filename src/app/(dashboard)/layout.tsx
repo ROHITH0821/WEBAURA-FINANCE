@@ -1,13 +1,13 @@
 import { ReactNode } from 'react'
 import { redirect } from 'next/navigation'
 import DashboardLayoutClient from '@/components/DashboardLayoutClient'
-import { createClient, createStaticClient } from '@/lib/supabaseServer'
+import { fetchAdminUserByEmail, syncFinanceAdminUserRole } from '@/lib/admin-user-lookup'
+import { createClient } from '@/lib/supabaseServer'
 import { getRequestsData, getReferrers } from '@/lib/data'
 import { computeRequestAttention } from '@/lib/request-attention'
 
 export default async function DashboardLayout({ children }: { children: ReactNode }) {
   const supabase = await createClient()
-  const admin = createStaticClient()
   const {
     data: { user },
   } = await supabase.auth.getUser()
@@ -16,17 +16,19 @@ export default async function DashboardLayout({ children }: { children: ReactNod
     redirect('/login')
   }
 
-  const [{ data }, requestsData, referrersList] = await Promise.all([
-    admin.from('admin_users').select('role,is_active,full_name,email').eq('email', email).maybeSingle(),
+  await syncFinanceAdminUserRole(email)
+
+  const [data, requestsData, referrersList] = await Promise.all([
+    fetchAdminUserByEmail(email),
     getRequestsData(),
     getReferrers(),
   ])
 
-  if (!data?.is_active) {
+  if (!data || data.is_active === false) {
     redirect('/login?error=forbidden')
   }
 
-  const isSuperAdmin = Boolean(data?.role === 'super_admin')
+  const isSuperAdmin = Boolean(data.role === 'super_admin')
   const { expenses, referralLeadRewards, recruitmentRewards } = requestsData
   const requestAttention = computeRequestAttention({
     myEmail: email,
@@ -38,9 +40,18 @@ export default async function DashboardLayout({ children }: { children: ReactNod
     referrers: referrersList,
   })
 
+  const roleLabel =
+    data.role === 'super_admin'
+      ? 'SUPER ADMIN'
+      : data.role === 'admin'
+        ? 'FINANCE ADMIN'
+        : data.role === 'founder'
+          ? 'FOUNDER'
+          : 'MEMBER'
+
   const profile = {
     name: String(data.full_name || email.split('@')[0] || 'User').toUpperCase(),
-    role: String(data.role || 'member').replace(/_/g, ' ').toUpperCase(),
+    role: roleLabel,
     email,
   }
 

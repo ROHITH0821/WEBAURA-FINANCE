@@ -29,7 +29,10 @@ export function resolveFinanceRole(
   if (!email || !founders?.length) return ''
 
   const match = founders.find((f) => String(f.email || '').trim().toLowerCase() === email)
-  return activeFinanceRole(match)
+  const fromFounders = activeFinanceRole(match)
+  if (fromFounders) return fromFounders
+
+  return ''
 }
 
 export function canViewOrgExpenseLedger(role: FinanceRole | ''): boolean {

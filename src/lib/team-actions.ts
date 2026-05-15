@@ -24,7 +24,11 @@ async function requireSuperAdmin(): Promise<{ myEmail: string } | { error: strin
   return { myEmail }
 }
 
-export async function addTeamMemberAction(email: string, fullName: string | null): Promise<ActionResult> {
+export async function addTeamMemberAction(
+  email: string,
+  fullName: string | null,
+  role: 'founder' | 'admin' = 'founder',
+): Promise<ActionResult> {
   const gate = await requireSuperAdmin()
   if ('error' in gate) return { ok: false, error: gate.error }
 
@@ -32,13 +36,15 @@ export async function addTeamMemberAction(email: string, fullName: string | null
   const normalized = String(email || '').trim().toLowerCase()
   if (!normalized || !normalized.includes('@')) return { ok: false, error: 'Valid email is required.' }
 
+  const nextRole = role === 'admin' ? 'admin' : 'founder'
+
   const { error } = await admin
     .from('admin_users')
     .upsert(
       {
         email: normalized,
         full_name: fullName && fullName.trim() ? fullName.trim() : null,
-        role: 'founder',
+        role: nextRole,
         is_active: true,
       },
       { onConflict: 'email' },
@@ -91,6 +97,30 @@ export async function updateTeamMemberAction(oldEmail: string, newEmail: string,
     .eq('email', normalizedOld)
 
   if (error) return { ok: false, error: error.message }
+  revalidate('founders')
+  return { ok: true }
+}
+
+export async function setTeamMemberRoleAction(
+  email: string,
+  role: 'founder' | 'admin',
+): Promise<ActionResult> {
+  const gate = await requireSuperAdmin()
+  if ('error' in gate) return { ok: false, error: gate.error }
+
+  const normalized = String(email || '').trim().toLowerCase()
+  if (!normalized) return { ok: false, error: 'Valid email is required.' }
+  if (normalized === gate.myEmail) return { ok: false, error: 'You cannot change your own role here.' }
+
+  const admin = createStaticClient()
+  const { data: row } = await admin.from('admin_users').select('role').eq('email', normalized).maybeSingle()
+  if (!row) return { ok: false, error: 'Team member not found.' }
+  if (row.role === 'super_admin') return { ok: false, error: 'Super admin role cannot be changed.' }
+
+  const nextRole = role === 'admin' ? 'admin' : 'founder'
+  const { error } = await admin.from('admin_users').update({ role: nextRole }).eq('email', normalized)
+  if (error) return { ok: false, error: error.message }
+
   revalidate('founders')
   return { ok: true }
 }

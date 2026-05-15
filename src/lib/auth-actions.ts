@@ -1,5 +1,6 @@
 'use server'
 
+import { syncFinanceAdminUserRole } from '@/lib/admin-user-lookup'
 import { createStaticClient } from '@/lib/supabaseServer'
 import { revalidateTag } from 'next/cache'
 import { cookies, headers } from 'next/headers'
@@ -53,6 +54,8 @@ export async function sendResendOTP(email: string) {
       is_active: true,
     })
   }
+
+  await syncFinanceAdminUserRole(normalizedEmail)
 
   // 2. Generate 6-digit OTP
   const otp = crypto.randomInt(100000, 999999).toString()
@@ -150,6 +153,8 @@ export async function verifyResendOTP(email: string, otp: string) {
 
   // Cleanup
   await supabase.from('finance_otp_requests').update({ otp_secret: null, otp_expires_at: null, otp_attempts: 0 }).eq('email', normalizedEmail)
+
+  await syncFinanceAdminUserRole(normalizedEmail)
 
   const cookieStore = await cookies()
   cookieStore.set('founder_email', normalizedEmail, {

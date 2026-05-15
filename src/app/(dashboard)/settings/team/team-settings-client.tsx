@@ -3,7 +3,12 @@
 import { useMemo, useState, useTransition } from 'react'
 import { Loader2, Plus } from 'lucide-react'
 import * as navigation from 'next/navigation'
-import { addTeamMemberAction, deleteTeamMemberAction, updateTeamMemberAction } from '@/lib/team-actions'
+import {
+  addTeamMemberAction,
+  deleteTeamMemberAction,
+  setTeamMemberRoleAction,
+  updateTeamMemberAction,
+} from '@/lib/team-actions'
 
 interface TeamMember {
   email: string
@@ -17,6 +22,7 @@ export default function TeamSettingsClient(props: { myEmail: string; members: Te
   const [pending, startTransition] = useTransition()
   const [email, setEmail] = useState('')
   const [name, setName] = useState('')
+  const [addRole, setAddRole] = useState<'founder' | 'admin'>('founder')
   const [editingEmail, setEditingEmail] = useState<string | null>(null)
   const [editName, setEditName] = useState('')
   const [editEmail, setEditEmail] = useState('')
@@ -51,6 +57,7 @@ export default function TeamSettingsClient(props: { myEmail: string; members: Te
           {rows.map((m) => {
             const isSelf = String(m.email || '').toLowerCase() === props.myEmail
             const isSuper = m.role === 'super_admin'
+            const isFinanceAdmin = m.role === 'admin'
             const isEditing = editingEmail === String(m.email)
 
             return (
@@ -66,11 +73,32 @@ export default function TeamSettingsClient(props: { myEmail: string; members: Te
                       isSuper ? 'bg-[#f7f7dc] border-slate-900 text-slate-900' : 'bg-white border-slate-200 text-slate-700'
                     }`}
                   >
-                    {isSuper ? 'SUPER ADMIN' : 'ADMIN'}
+                    {isSuper ? 'SUPER ADMIN' : isFinanceAdmin ? 'FINANCE ADMIN' : 'FOUNDER'}
                   </span>
                 </div>
 
-                <div className="px-6 md:px-8 py-5 md:py-7 flex items-center justify-start md:justify-end gap-6">
+                <div className="px-6 md:px-8 py-5 md:py-7 flex flex-wrap items-center justify-start md:justify-end gap-3 md:gap-6">
+                  {!isSuper && !isSelf && (
+                    <select
+                      value={m.role === 'admin' ? 'admin' : 'founder'}
+                      disabled={pending}
+                      onChange={(e) => {
+                        const next = e.target.value === 'admin' ? 'admin' : 'founder'
+                        if (next === m.role) return
+                        startTransition(async () => {
+                          const r = await setTeamMemberRoleAction(m.email, next)
+                          if (r.ok === false) window.alert(r.error)
+                          router?.refresh()
+                        })
+                      }}
+                      className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-[9px] font-black uppercase tracking-widest text-slate-700 outline-none focus:border-slate-400"
+                      aria-label="Change access role"
+                    >
+                      <option value="founder">Founder</option>
+                      <option value="admin">Finance admin</option>
+                    </select>
+                  )}
+
                   <button
                     type="button"
                     disabled={pending}
@@ -157,8 +185,8 @@ export default function TeamSettingsClient(props: { myEmail: string; members: Te
         </div>
 
         <div className="mt-6 md:mt-8 rounded-2xl border border-slate-200 bg-white p-5 md:p-6">
-          <p className="text-[9px] md:text-[10px] font-black uppercase tracking-[0.3em] text-slate-400 mb-4">Add Founder Email</p>
-          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-[1fr_1fr_auto] gap-3 items-end">
+          <p className="text-[9px] md:text-[10px] font-black uppercase tracking-[0.3em] text-slate-400 mb-4">Add team member</p>
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-[1fr_1fr_160px_auto] gap-3 items-end">
             <div>
               <label className="text-[9px] md:text-[10px] font-black uppercase tracking-[0.2em] text-slate-400 ml-1">Email</label>
               <input
@@ -177,16 +205,28 @@ export default function TeamSettingsClient(props: { myEmail: string; members: Te
                 className="mt-2 w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm font-bold text-slate-900 outline-none focus:border-slate-400"
               />
             </div>
+            <div>
+              <label className="text-[9px] md:text-[10px] font-black uppercase tracking-[0.2em] text-slate-400 ml-1">Role</label>
+              <select
+                value={addRole}
+                onChange={(e) => setAddRole(e.target.value === 'admin' ? 'admin' : 'founder')}
+                className="mt-2 w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm font-bold text-slate-900 outline-none focus:border-slate-400"
+              >
+                <option value="founder">Founder (own expenses)</option>
+                <option value="admin">Finance admin (team ledger)</option>
+              </select>
+            </div>
             <button
               type="button"
               disabled={pending || !email.trim()}
               onClick={() =>
                 startTransition(async () => {
-                  const res = await addTeamMemberAction(email.trim(), name.trim() || null)
+                  const res = await addTeamMemberAction(email.trim(), name.trim() || null, addRole)
                   if (res.ok === false) window.alert(res.error)
                   router?.refresh()
                   setEmail('')
                   setName('')
+                  setAddRole('founder')
                 })
               }
               className="h-[46px] px-8 rounded-xl bg-slate-900 text-white text-[9px] md:text-[10px] font-black uppercase tracking-widest hover:bg-slate-800 transition-all disabled:opacity-30 flex items-center justify-center gap-2 w-full md:w-auto"
