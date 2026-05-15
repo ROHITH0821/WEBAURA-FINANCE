@@ -1,7 +1,7 @@
 import Link from 'next/link'
 import { Plus, Filter } from 'lucide-react'
 import { formatCurrency } from '@/lib/utils'
-import { activeFinanceRole } from '@/lib/admin-gates'
+import { activeFinanceRole } from '@/lib/finance-role'
 import { createClient, createStaticClient } from '@/lib/supabaseServer'
 import { getExpenseRequests, getFounders } from '@/lib/data'
 import ExpenseRow from '@/components/ExpenseRow'
