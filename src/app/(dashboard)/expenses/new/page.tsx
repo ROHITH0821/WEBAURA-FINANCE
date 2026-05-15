@@ -67,9 +67,13 @@ export default function NewExpensePage() {
         project_id: formData.project_id.trim() || null,
       })
       if (res?.error) throw new Error(res.error)
-      if (res?.redirect) {
-        router?.push(res.redirect)
+      if (res?.ok) {
         router?.refresh()
+        if (typeof window !== 'undefined' && window.history.length > 1) {
+          router?.back()
+        } else {
+          router?.push(res.fallbackPath || '/requests')
+        }
         return
       }
       throw new Error('Unexpected response from server. Try again.')
