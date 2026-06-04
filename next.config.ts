@@ -1,11 +1,16 @@
 import type { NextConfig } from "next";
 
+const isProd = process.env.NODE_ENV === "production";
+
 const nextConfig: NextConfig = {
-  allowedDevOrigins: ['127.0.0.1'],
+  allowedDevOrigins: ['127.0.0.1', 'localhost'],
   experimental: {
     optimizePackageImports: ['lucide-react'],
   },
   async headers() {
+    // HSTS and other strict headers break localhost dev hydration when cached.
+    if (!isProd) return [];
+
     const allowedOrigins = [
       'https://www.webauraindia.com',
       'https://admin.webauraindia.com',

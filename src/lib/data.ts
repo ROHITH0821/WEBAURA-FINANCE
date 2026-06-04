@@ -101,6 +101,44 @@ export function getProjectDetail(id: string) {
   )()
 }
 
+// 6b. Get Project Expenses (paid + pending linked to project)
+export function getProjectExpenses(projectId: string) {
+  return unstable_cache(
+    async () => {
+      if (!projectId) return []
+      const supabase = createStaticClient()
+      const { data } = await supabase
+        .from('expense_requests')
+        .select('*')
+        .eq('project_id', projectId)
+        .neq('status', 'rejected')
+        .order('request_date', { ascending: false })
+      return data || []
+    },
+    ['project-expenses', projectId],
+    { revalidate: 30, tags: ['expenses', 'projects'] },
+  )()
+}
+
+export function getCredentialsMetadata(projectId: string) {
+  return unstable_cache(
+    async () => {
+      if (!projectId) return null
+      const supabase = createStaticClient()
+      const { data } = await supabase
+        .from('client_credentials')
+        .select(
+          'id,project_id,client_name,website_url,domain_name,domain_expiry_date,hosting_provider,hosting_expiry_date,cms_type,updated_at',
+        )
+        .eq('project_id', projectId)
+        .maybeSingle()
+      return data
+    },
+    ['credentials-meta', projectId],
+    { revalidate: 30, tags: ['credentials', 'projects'] },
+  )()
+}
+
 // 6. Get Project Payments (Cached per project; key includes projectId)
 export function getProjectPayments(projectId: string) {
   return unstable_cache(

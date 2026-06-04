@@ -38,6 +38,7 @@ export async function refreshFinanceData() {
   revalidate('expenses')
   revalidate('referrals')
   revalidate('recruitment')
+  revalidate('credentials')
   revalidatePath('/requests')
   revalidatePath('/requests', 'page')
   revalidatePath('/expenses')
