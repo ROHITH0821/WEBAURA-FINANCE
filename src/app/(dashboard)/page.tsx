@@ -68,7 +68,7 @@ export default async function DashboardPage() {
           Financial Analytics
         </h2>
         <p className="mt-1.5 max-w-2xl text-[8px] font-black uppercase leading-relaxed tracking-[0.16em] text-slate-500 sm:text-[9px] sm:tracking-[0.18em] md:text-[10px] md:tracking-[0.2em]">
-          Live data from your finance ledger • figures cache briefly for speed
+          All-time totals from your finance ledger • figures cache briefly for speed
         </p>
       </div>
 
@@ -120,7 +120,7 @@ export default async function DashboardPage() {
                 </div>
               ) : (
                 <>
-                  <div className="text-[9px] md:text-[10px] font-black uppercase tracking-widest text-slate-500">This month</div>
+                  <div className="text-[9px] md:text-[10px] font-black uppercase tracking-widest text-slate-500">All time</div>
                   <div className="space-y-4">
                     {[
                       { label: 'Revenue', value: statsData.totalRevenue, color: 'bg-slate-900' },

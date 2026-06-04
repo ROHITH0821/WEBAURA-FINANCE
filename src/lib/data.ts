@@ -1,18 +1,7 @@
 import { unstable_cache } from 'next/cache'
 import { cache } from 'react'
+import { auditDashboardStats, computeDashboardStats } from '@/lib/dashboard-stats'
 import { createStaticClient } from '@/lib/supabaseServer'
-
-function startOfMonthISO() {
-  const now = new Date()
-  const start = new Date(now.getFullYear(), now.getMonth(), 1)
-  return start.toISOString().slice(0, 10)
-}
-
-function endOfMonthISO() {
-  const now = new Date()
-  const end = new Date(now.getFullYear(), now.getMonth() + 1, 0)
-  return end.toISOString().slice(0, 10)
-}
 
 // 1. Get Founder Identity (Cached for 1 hour)
 export const getFounders = unstable_cache(
@@ -29,37 +18,31 @@ export const getFounders = unstable_cache(
   { revalidate: 60, tags: ['founders'] }
 )
 
-// 2. Get Dashboard Stats (Cached for 30 seconds)
+// 2. Get Dashboard Stats — all-time ledger totals (cached 30s)
 export const getDashboardStats = unstable_cache(
   async () => {
     const supabase = createStaticClient()
-    const start = startOfMonthISO()
-    const end = endOfMonthISO()
 
     const [{ data: payments }, { data: expenses }, { data: projects }] = await Promise.all([
-      supabase.from('payments_received').select('amount,payment_date').gte('payment_date', start).lte('payment_date', end),
-      supabase.from('expense_requests').select('amount,request_date,status').eq('status', 'paid').gte('request_date', start).lte('request_date', end),
-      supabase.from('projects').select('agreed_value,total_received,status').eq('status', 'active'),
+      supabase.from('payments_received').select('amount'),
+      supabase.from('expense_requests').select('amount,status'),
+      supabase.from('projects').select('agreed_value,total_received,status'),
     ])
 
-    const totalRevenue = (payments || []).reduce((sum, p) => sum + Number(p.amount), 0)
-    const totalExpenses = (expenses || []).reduce((sum, e) => sum + Number(e.amount), 0)
-    const orderBookValue = (projects || []).reduce((sum, p) => sum + Number(p.agreed_value || 0), 0)
-    const outstanding = (projects || []).reduce((sum, p) => {
-      const agreed = Number(p.agreed_value || 0)
-      const received = Number(p.total_received || 0)
-      return sum + Math.max(0, agreed - received)
-    }, 0)
+    const stats = computeDashboardStats({
+      payments: payments || [],
+      expenses: expenses || [],
+      projects: projects || [],
+    })
 
-    return {
-      totalRevenue,
-      totalExpenses,
-      orderBookValue,
-      outstanding,
-      netProfit: totalRevenue - totalExpenses
+    const audit = auditDashboardStats(stats)
+    if (!audit.ok) {
+      console.error('[getDashboardStats] integrity audit failed:', audit.issues)
     }
+
+    return stats
   },
-  ['dashboard-stats'],
+  ['dashboard-stats-all-time'],
   { revalidate: 30, tags: ['finance-summary'] }
 )
 
