@@ -39,7 +39,13 @@ export default function SearchInput({
       else params.delete(param)
       const next = params.toString()
       const href = next ? `${pathname}?${next}` : pathname
-      router?.replace(href, { scroll: false })
+      if (router) {
+        router.replace(href, { scroll: false })
+        router.refresh()
+      } else if (typeof window !== 'undefined') {
+        window.history.replaceState(window.history.state, '', href)
+        window.location.assign(href)
+      }
       dirtyRef.current = false
     }, 380)
 
@@ -55,9 +61,6 @@ export default function SearchInput({
         onChange={(e) => {
           dirtyRef.current = true
           setValue(e.target.value)
-        }}
-        onBlur={() => {
-          dirtyRef.current = false
         }}
         placeholder={placeholder}
         className="box-border w-full min-w-0 rounded-xl border border-slate-200 bg-slate-50 py-3 pl-12 pr-4 text-xs font-medium outline-none transition-colors focus:border-slate-900"

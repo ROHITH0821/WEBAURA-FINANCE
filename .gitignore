@@ -31,3 +31,8 @@ error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# local agent / skill tooling (not part of the app)
+.agents/
+.claude/
+skills-lock.json

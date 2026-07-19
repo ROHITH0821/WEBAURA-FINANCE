@@ -15,6 +15,7 @@ import {
   User,
   LogOut,
   ChevronRight,
+  CirclePlus,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { dashboardBottomNavPathSet } from '@/lib/dashboard-bottom-nav'
@@ -27,6 +28,7 @@ const navItems = [
   { name: 'Expenses', href: '/expenses', icon: Receipt },
   { name: 'Requests', href: '/requests', icon: Inbox },
   { name: 'Revenue', href: '/revenue', icon: PieChart },
+  { name: 'Revenue Add-ons', href: '/revenue/add-ons', icon: CirclePlus },
   { name: 'Audit', href: '/audit', icon: ShieldCheck, superAdmin: true },
   { name: 'Settings', href: '/settings/team', icon: Settings, superAdmin: true },
   { name: 'Profile', href: '/profile', icon: User },
@@ -71,8 +73,10 @@ export default function SidebarStable({
           {filteredItems.map((item) => {
             const pathOnly = item.href.split('#')[0]
             const isActive =
-              pathname === pathOnly ||
-              (pathOnly !== '/' && pathname.startsWith(`${pathOnly}/`))
+              pathOnly === '/revenue'
+                ? pathname === '/revenue'
+                : pathname === pathOnly ||
+                  (pathOnly !== '/' && pathname.startsWith(`${pathOnly}/`))
 
             const linkHref =
               item.href === '/requests' && requestAttentionTotal > 0 ? '/requests#expenses' : item.href

@@ -4,7 +4,7 @@ import { useEffect, useMemo, useState, useTransition } from 'react'
 import Link from 'next/link'
 import * as navigation from 'next/navigation'
 import { CheckCircle2, Loader2, XCircle, ArrowLeftRight } from 'lucide-react'
-import { formatCurrency, formatExpenseCategory } from '@/lib/utils'
+import { formatCurrency, formatExpenseCategory, formatExpenseLoggedAt } from '@/lib/utils'
 import {
   approveExpenseRequestAction,
   rejectExpenseRequestAction,
@@ -373,12 +373,7 @@ function ExpenseCard({
             </p>
           </div>
           <p className="mt-1 text-[9px] md:text-[10px] font-black uppercase tracking-widest text-slate-400">
-            {(() => {
-              const raw = row.created_at ?? row.request_date
-              if (!raw) return '—'
-              const d = new Date(raw)
-              return Number.isNaN(d.getTime()) ? String(raw) : d.toLocaleDateString('en-IN', { day: '2-digit', month: 'short' })
-            })()}
+            {formatExpenseLoggedAt(row)}
           </p>
           {row.status !== 'pending' && (
             <div className={`mt-2 inline-flex items-center px-3 py-1 rounded-full text-[9px] font-black uppercase tracking-widest ${

@@ -1,15 +1,16 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import * as navigation from 'next/navigation'
-import { ArrowLeft, Save, IndianRupee, User, Briefcase, FileText, Loader2, Percent, Plus } from 'lucide-react'
+import { Save, IndianRupee, User, Briefcase, FileText, Loader2, Plus } from 'lucide-react'
+import BackButton from '@/components/BackButton'
+import { useAppRouter } from '@/hooks/useAppRouter'
 import { createClient } from '@/lib/supabase'
 import { refreshFinanceData, createProject } from '@/lib/actions'
 import { getAgenciesForForm, createAgencyAction } from '@/lib/agency-actions'
 import { REVENUE_TYPES, REVENUE_TYPE_LABELS, type Agency } from '@/types/finance'
 
 export default function NewProjectPage() {
-  const router = typeof navigation.useRouter === 'function' ? navigation.useRouter() : null
+  const { back } = useAppRouter()
   const supabase = createClient()
 
   const [loading, setLoading] = useState(false)
@@ -26,7 +27,6 @@ export default function NewProjectPage() {
     project_lead: '',
     payment_structure: 'custom',
     revenue_type: 'direct_client',
-    share_percentage: '100',
     agency_id: '',
     notes: ''
   })
@@ -105,12 +105,7 @@ export default function NewProjectPage() {
   return (
     <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-700">
       <div className="flex items-center gap-4">
-        <button 
-          onClick={() => router?.back()}
-          className="p-2 rounded-full hover:bg-slate-100 transition-all text-slate-400 hover:text-slate-900"
-        >
-          <ArrowLeft className="w-5 h-5" />
-        </button>
+        <BackButton fallbackHref="/projects" />
         <div>
           <h2 className="text-3xl font-black tracking-tight text-slate-900 uppercase">Create New Project</h2>
           <p className="text-slate-500 font-medium">Initialize a new financial tracking entry</p>
@@ -188,42 +183,20 @@ export default function NewProjectPage() {
             </div>
           </div>
 
-          <div className="grid grid-cols-2 gap-8">
-            <div className="space-y-3">
-              <label className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400 ml-1">Revenue Type</label>
-              <div className="relative">
-                <Briefcase className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
-                <select
-                  required
-                  value={formData.revenue_type}
-                  onChange={(e) => setFormData({ ...formData, revenue_type: e.target.value })}
-                  className="w-full bg-slate-50 border border-slate-200 rounded-xl py-4 pl-12 pr-4 text-slate-900 outline-none focus:border-slate-900 appearance-none transition-all font-bold text-sm"
-                >
-                  {REVENUE_TYPES.map((rt) => (
-                    <option key={rt} value={rt}>{REVENUE_TYPE_LABELS[rt]}</option>
-                  ))}
-                </select>
-              </div>
-            </div>
-            <div className="space-y-3">
-              <label className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400 ml-1">Default Share (%)</label>
-              <div className="relative">
-                <Percent className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
-                <input
-                  type="number"
-                  required
-                  min={0}
-                  max={100}
-                  step="0.01"
-                  value={formData.share_percentage}
-                  onChange={(e) => setFormData({ ...formData, share_percentage: e.target.value })}
-                  placeholder="100"
-                  className="w-full bg-slate-50 border border-slate-200 rounded-xl py-4 pl-12 pr-4 text-slate-900 outline-none focus:border-slate-900 transition-all font-bold text-sm"
-                />
-              </div>
-              <p className="text-[9px] font-bold text-slate-400 ml-1">
-                Your cut of this client&apos;s revenue — pre-fills each payment, editable per deal.
-              </p>
+          <div className="space-y-3">
+            <label className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400 ml-1">Revenue Type</label>
+            <div className="relative">
+              <Briefcase className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+              <select
+                required
+                value={formData.revenue_type}
+                onChange={(e) => setFormData({ ...formData, revenue_type: e.target.value })}
+                className="w-full bg-slate-50 border border-slate-200 rounded-xl py-4 pl-12 pr-4 text-slate-900 outline-none focus:border-slate-900 appearance-none transition-all font-bold text-sm"
+              >
+                {REVENUE_TYPES.map((rt) => (
+                  <option key={rt} value={rt}>{REVENUE_TYPE_LABELS[rt]}</option>
+                ))}
+              </select>
             </div>
           </div>
 
@@ -342,7 +315,7 @@ export default function NewProjectPage() {
           <div className="pt-8 border-t border-slate-100 flex gap-6">
             <button 
               type="button" 
-              onClick={() => router?.back()}
+              onClick={() => back('/projects')}
               className="flex-1 py-5 rounded-xl border border-slate-200 text-slate-400 font-black hover:bg-slate-50 hover:text-slate-900 transition-all uppercase tracking-[0.2em] text-[10px]"
             >
               Discard Changes

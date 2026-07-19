@@ -1,14 +1,15 @@
 'use client'
 
 import { useMemo, useState, useTransition } from 'react'
-import * as navigation from 'next/navigation'
-import { ArrowLeft, Save, Trash2, Loader2, Plus } from 'lucide-react'
+import { Save, Trash2, Loader2, Plus } from 'lucide-react'
+import BackButton from '@/components/BackButton'
+import { useAppRouter } from '@/hooks/useAppRouter'
 import { updateProjectAction, deleteProjectAction } from '@/lib/project-actions'
 import { createAgencyAction } from '@/lib/agency-actions'
 import { REVENUE_TYPES, REVENUE_TYPE_LABELS, type Agency } from '@/types/finance'
 
 export default function ProjectEditClient(props: { project: any; founders: any[]; agencies: Agency[] }) {
-  const router = typeof navigation.useRouter === 'function' ? navigation.useRouter() : null
+  const { push, refresh } = useAppRouter()
   const [pending, startTransition] = useTransition()
   const [dangerOpen, setDangerOpen] = useState(false)
   const [confirm, setConfirm] = useState('')
@@ -36,7 +37,6 @@ export default function ProjectEditClient(props: { project: any; founders: any[]
     status: props.project.status || 'active',
     project_lead: props.project.project_lead || '',
     revenue_type: props.project.revenue_type || 'direct_client',
-    share_percentage: String(props.project.share_percentage ?? 100),
     agency_id: props.project.agency_id || '',
     notes: props.project.notes || '',
   })
@@ -64,13 +64,7 @@ export default function ProjectEditClient(props: { project: any; founders: any[]
   return (
     <div className="space-y-10 animate-in slide-in-from-bottom-4 duration-700">
       <div className="flex items-center justify-between">
-        <button
-          onClick={() => router?.back()}
-          className="flex items-center gap-3 text-slate-400 hover:text-slate-900 transition-colors group"
-        >
-          <ArrowLeft className="w-4 h-4 group-hover:-translate-x-1 transition-transform" />
-          <span className="text-[10px] font-black uppercase tracking-widest">Back</span>
-        </button>
+        <BackButton fallbackHref={`/projects/${props.project.id}`} label="Back" />
       </div>
 
       <div className="glass-card bg-white p-10">
@@ -213,18 +207,6 @@ export default function ProjectEditClient(props: { project: any; founders: any[]
             </select>
           </Field>
 
-          <Field label="Default Share (%)">
-            <input
-              type="number"
-              min={0}
-              max={100}
-              step="0.01"
-              value={form.share_percentage}
-              onChange={(e) => setForm({ ...form, share_percentage: e.target.value })}
-              className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm font-bold text-slate-900 outline-none focus:border-slate-400"
-            />
-          </Field>
-
           {form.revenue_type === 'agency_digital_marketing' ? (
             <Field label="Agency">
               <select
@@ -331,8 +313,8 @@ export default function ProjectEditClient(props: { project: any; founders: any[]
                       window.alert(r.error)
                       return
                     }
-                    router?.push('/projects')
-                    router?.refresh()
+                    push('/projects')
+                    refresh()
                   })
                 }
                 className="px-7 py-3 rounded-xl bg-rose-600 text-white text-[10px] font-black uppercase tracking-widest hover:bg-rose-700 transition-all disabled:opacity-30"

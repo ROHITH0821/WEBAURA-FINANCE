@@ -3,13 +3,11 @@
 import { useState } from 'react'
 import * as navigation from 'next/navigation'
 import { Receipt, Tag, Calendar, CheckCircle2, Loader2, X, Trash2 } from 'lucide-react'
-import { formatCurrency, formatExpenseCategory } from '@/lib/utils'
+import { formatCurrency, formatExpenseCategory, formatExpenseLoggedAt } from '@/lib/utils'
 import { approveExpense, deleteExpense } from '@/lib/actions'
 
 interface ExpenseRowProps {
   expense: any
-  /** All-time net profit — same figure as the dashboard summary card. */
-  portalNetProfit?: number
   founders: any[]
   /** Agency this expense is tagged to, if any (resolved server-side from expense.agency_id). */
   agencyName?: string
@@ -22,7 +20,6 @@ interface ExpenseRowProps {
 
 export default function ExpenseRow({
   expense,
-  portalNetProfit = 0,
   founders,
   agencyName,
   canApproveAndPay = false,
@@ -81,20 +78,14 @@ export default function ExpenseRow({
     }
   }
 
-  const formattedDate = (() => {
-    try {
-      if (!expense.request_date) return 'No Date'
-      const d = new Date(expense.request_date)
-      if (isNaN(d.getTime())) return 'Invalid Date'
-      return d.toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' })
-    } catch {
-      return 'Error'
-    }
-  })()
+  const formattedDate = formatExpenseLoggedAt(expense)
 
   if (hidden) return null
 
-  const netProfit = Number.isFinite(portalNetProfit) ? portalNetProfit : 0
+  const snapshotRaw = expense.net_profit_snapshot
+  const hasSnapshot = snapshotRaw !== null && snapshotRaw !== undefined && snapshotRaw !== ''
+  const remainingThatDay = hasSnapshot ? Number(snapshotRaw) : null
+  const showRemaining = remainingThatDay !== null && Number.isFinite(remainingThatDay)
 
   return (
     <article className="group min-w-0 border-b border-slate-100 bg-white px-4 py-5 transition-colors last:border-b-0 hover:bg-[#f7f7dc]/25 md:px-8 md:py-6">
@@ -147,17 +138,21 @@ export default function ExpenseRow({
             </p>
             <div className="mt-3 rounded-xl border border-slate-200 bg-slate-50/90 px-3 py-2.5 sm:ml-auto sm:inline-block sm:min-w-[8.5rem]">
               <p className="text-[8px] font-black uppercase tracking-[0.16em] text-slate-500">
-                Net Profit
+                Remaining
               </p>
               <p
                 className={`mt-0.5 font-black tabular-nums tracking-tight text-base md:text-lg ${
-                  netProfit >= 0 ? 'text-emerald-600' : 'text-rose-600'
+                  showRemaining
+                    ? remainingThatDay! >= 0
+                      ? 'text-emerald-600'
+                      : 'text-rose-600'
+                    : 'text-slate-400'
                 }`}
               >
-                {formatCurrency(netProfit)}
+                {showRemaining ? formatCurrency(remainingThatDay!) : '—'}
               </p>
               <p className="mt-1 text-[8px] font-bold uppercase tracking-wider text-slate-400">
-                Dashboard total
+                {status === 'paid' ? 'On that day' : 'After paid'}
               </p>
             </div>
           </div>

@@ -1,6 +1,6 @@
 import Link from 'next/link'
 import { createClient } from '@/lib/supabaseServer'
-import { ArrowLeft, AlertCircle } from 'lucide-react'
+import { AlertCircle } from 'lucide-react'
 import { formatCurrency } from '@/lib/utils'
 import {
   getProjectDetail,
@@ -11,6 +11,7 @@ import {
 } from '@/lib/data'
 import { Suspense } from 'react'
 import ProjectDetailClient from '@/components/ProjectDetailClient'
+import ProjectDetailBackButton from './project-detail-back-button'
 
 export const dynamic = 'force-dynamic'
 
@@ -72,13 +73,7 @@ export default async function ProjectDetailPage({
   return (
     <div className="space-y-6 md:space-y-10 animate-in fade-in slide-in-from-bottom-4 duration-700">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-        <Link
-          href="/projects"
-          className="flex items-center gap-3 text-slate-400 hover:text-slate-900 transition-colors group"
-        >
-          <ArrowLeft className="w-4 h-4 group-hover:-translate-x-1 transition-transform" />
-          <span className="text-[9px] md:text-[10px] font-black uppercase tracking-widest">Back to Archive</span>
-        </Link>
+        <ProjectDetailBackButton />
         {isSuperAdmin ? (
           <div className="flex gap-3 w-full sm:w-auto">
             <Link
@@ -195,7 +190,7 @@ export default async function ProjectDetailPage({
                   Revenue Split Clause
                 </p>
                 <p className="text-xs md:text-sm text-slate-700 leading-relaxed font-bold uppercase tracking-tight">
-                  10% Platform • 45% Lead • 45% Equal Share
+                  50% Lead · 50% Equal Share
                 </p>
               </div>
               <div className="pt-6 md:pt-8 border-t border-slate-100">

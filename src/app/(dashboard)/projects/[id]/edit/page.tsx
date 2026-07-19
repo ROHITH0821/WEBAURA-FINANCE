@@ -35,7 +35,7 @@ export default async function ProjectEditPage({
   const { data: founders } = await admin.from('admin_users').select('email, full_name, is_active').eq('is_active', true)
   const { data: agencies } = await admin
     .from('agencies')
-    .select('id,name,default_share_percentage,is_active,notes,created_at')
+    .select('id,name,is_active,notes,created_at')
     .eq('is_active', true)
     .order('name', { ascending: true })
 

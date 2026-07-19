@@ -17,20 +17,12 @@ export async function recordPaymentAction(input: {
   paymentStage: 'advance' | 'milestone_1' | 'milestone_2' | 'milestone_3' | 'final' | 'full'
   transactionRef: string
   notes?: string
-  grossAmount?: number | null
-  sharePercentage?: number | null
-  dealExpenses?: number | null
 }): Promise<ActionResult> {
-  console.log('recordPaymentAction started', { projectId: input.projectId })
-  
   try {
-    console.log('Performing gate check...')
     const gate = await requireActiveAdmin()
     if (!gate.ok) {
-      console.log('Gate check failed:', gate.error)
       return { ok: false, error: gate.error }
     }
-    console.log('Gate check passed for:', gate.email)
 
     const projectId = String(input.projectId || '').trim()
     const amount = Math.max(0, Math.round(Number(input.amount)))
@@ -48,16 +40,6 @@ export async function recordPaymentAction(input: {
     if (!Number.isFinite(amount) || amount <= 0) return { ok: false, error: 'Amount must be greater than 0.' }
 
     const admin = createStaticClient()
-    console.log('Inserting payment into finance.payments_received...')
-    
-    const grossAmount =
-      input.grossAmount != null && String(input.grossAmount) !== '' ? Math.max(0, Number(input.grossAmount)) : null
-    const sharePercentage =
-      input.sharePercentage != null && String(input.sharePercentage) !== ''
-        ? Math.max(0, Math.min(100, Number(input.sharePercentage)))
-        : null
-    const dealExpenses =
-      input.dealExpenses != null && String(input.dealExpenses) !== '' ? Math.max(0, Number(input.dealExpenses)) : null
 
     const { error } = await admin.from('payments_received').insert({
       project_id: projectId,
@@ -70,9 +52,6 @@ export async function recordPaymentAction(input: {
       notes: notes.length ? notes : null,
       verified: false,
       verified_by: null,
-      gross_amount: grossAmount,
-      share_percentage: sharePercentage,
-      deal_expenses: dealExpenses,
     })
 
     if (error) {
@@ -80,7 +59,6 @@ export async function recordPaymentAction(input: {
       return { ok: false, error: `Database Error: ${error.message} (Code: ${error.code})` }
     }
 
-    console.log('Payment inserted successfully. Revalidating tags...')
     try {
       revalidate('projects')
       revalidate('payments')
@@ -89,15 +67,11 @@ export async function recordPaymentAction(input: {
     } catch (revalidateErr) {
       console.warn('Revalidation warning:', revalidateErr)
     }
-
-    console.log('recordPaymentAction completed successfully')
   } catch (err: any) {
     if (err?.digest?.includes('NEXT_REDIRECT')) throw err
     console.error('CRITICAL ERROR in recordPaymentAction:', err)
     return { ok: false, error: `System Failure: ${err?.message || 'Unknown error'}` }
   }
 
-  // Redirect outside try-catch
   redirect(`/projects/${input.projectId}`)
 }
-

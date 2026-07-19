@@ -53,7 +53,6 @@ function emptyAddForm() {
     billingCycle: 'monthly' as BillingCycle,
     nextDueDate: '',
     revenueType: 'direct_client' as RevenueType,
-    sharePercentage: '100',
     agencyId: '',
   }
 }
@@ -67,16 +66,13 @@ function rowToEditForm(row: RecurringRevenueRow) {
     billingCycle: row.billing_cycle,
     nextDueDate: row.next_due_date,
     revenueType: (row.revenue_type || 'direct_client') as RevenueType,
-    sharePercentage: String(row.share_percentage ?? 100),
     agencyId: row.agency_id || '',
   }
 }
 
-function emptyPaymentForm(defaultReceivedBy: string, defaultAmount: number, defaultShare: number = 100) {
+function emptyPaymentForm(defaultReceivedBy: string, defaultAmount: number) {
   return {
     amountReceived: String(defaultAmount || ''),
-    grossAmount: '',
-    sharePercentage: String(defaultShare ?? 100),
     paymentDate: new Date().toISOString().slice(0, 10),
     transactionRef: '',
     receivedBy: defaultReceivedBy,
@@ -183,7 +179,6 @@ export default function RecurringRevenueClient({
         billingCycle: addForm.billingCycle,
         nextDueDate: addForm.nextDueDate,
         revenueType: addForm.revenueType,
-        sharePercentage: Number(addForm.sharePercentage),
         agencyId: addForm.agencyId || null,
       })
       if (!result.ok) {
@@ -210,7 +205,6 @@ export default function RecurringRevenueClient({
         billingCycle: editForm.billingCycle,
         nextDueDate: editForm.nextDueDate,
         revenueType: editForm.revenueType,
-        sharePercentage: Number(editForm.sharePercentage),
         agencyId: editForm.agencyId || null,
       })
       if (!result.ok) {
@@ -234,8 +228,6 @@ export default function RecurringRevenueClient({
         transactionRef: paymentForm.transactionRef,
         receivedBy: paymentForm.receivedBy,
         notes: paymentForm.notes,
-        grossAmount: paymentForm.grossAmount ? Number(paymentForm.grossAmount) : null,
-        sharePercentage: paymentForm.sharePercentage ? Number(paymentForm.sharePercentage) : null,
       })
       if (!result.ok) {
         setPaymentError(result.error)
@@ -411,13 +403,12 @@ export default function RecurringRevenueClient({
                         <span className="inline-flex items-center rounded-full bg-slate-100 px-2.5 py-1 text-[9px] font-black uppercase tracking-widest text-slate-700">
                           {REVENUE_TYPE_LABELS[(row.revenue_type || 'direct_client') as RevenueType]}
                         </span>
-                        <p className="mt-1 text-[9px] font-bold text-slate-400">{row.share_percentage ?? 100}% share</p>
                       </td>
                       <td className="px-4 py-4 md:px-6 text-slate-700">{row.service_description}</td>
                       <td className="px-4 py-4 md:px-6 font-black tabular-nums text-slate-900">
                         {formatCurrency(row.amount)}
                       </td>
-                      <td className="px-4 py-4 md:px-6">
+                      <td className="whitespace-nowrap px-4 py-4 md:px-6">
                         <ExpiryBadge date={row.next_due_date} />
                       </td>
                       <td className="px-4 py-4 md:px-6">
@@ -463,7 +454,7 @@ export default function RecurringRevenueClient({
                               setLoggingId(loggingId === row.id ? null : row.id)
                               setEditingId(null)
                               setHistoryId(null)
-                              setPaymentForm(emptyPaymentForm(defaultReceivedBy, row.amount, row.share_percentage))
+                              setPaymentForm(emptyPaymentForm(defaultReceivedBy, row.amount))
                               setPaymentError('')
                             }}
                             className="inline-flex items-center gap-1 rounded-lg border border-slate-200 px-3 py-2 text-[9px] font-black uppercase tracking-widest text-slate-700 hover:border-slate-900"
@@ -616,7 +607,7 @@ export default function RecurringRevenueClient({
                       <td className="px-4 py-4 md:px-6 font-black tabular-nums text-slate-900">
                         {formatCurrency(row.amount)}
                       </td>
-                      <td className="px-4 py-4 md:px-6">
+                      <td className="whitespace-nowrap px-4 py-4 md:px-6">
                         <ExpiryBadge date={row.next_due_date} />
                       </td>
                       <td className="px-4 py-4 md:px-6">
@@ -792,21 +783,6 @@ function RecurringClientFields({
         </select>
       </label>
 
-      <label className="space-y-2">
-        <span className="text-[9px] font-black uppercase tracking-widest text-slate-500">Default share (%)</span>
-        <input
-          required
-          type="number"
-          min={0}
-          max={100}
-          step="0.01"
-          value={form.sharePercentage}
-          onChange={(event) => onChange({ ...form, sharePercentage: event.target.value })}
-          className="w-full rounded-xl border border-slate-200 px-4 py-3 text-sm"
-          placeholder="100"
-        />
-      </label>
-
       {form.revenueType === 'agency_digital_marketing' ? (
         <div className="space-y-2 md:col-span-2">
           <span className="text-[9px] font-black uppercase tracking-widest text-slate-500">Agency</span>
@@ -902,45 +878,10 @@ function PaymentFields({
   founders: RecurringFounderOption[]
   onChange: (next: ReturnType<typeof emptyPaymentForm>) => void
 }) {
-  const handleGrossOrShareChange = (next: { grossAmount?: string; sharePercentage?: string }) => {
-    const merged = { ...form, ...next }
-    const gross = Number(merged.grossAmount)
-    const share = Number(merged.sharePercentage)
-    const computedNet =
-      merged.grossAmount && Number.isFinite(gross) && Number.isFinite(share)
-        ? Math.round(gross * (share / 100))
-        : merged.amountReceived
-    onChange({ ...merged, amountReceived: merged.grossAmount ? String(computedNet) : merged.amountReceived })
-  }
-
   return (
     <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
       <label className="space-y-2">
-        <span className="text-[9px] font-black uppercase tracking-widest text-slate-500">Gross amount (₹) — optional</span>
-        <input
-          type="number"
-          value={form.grossAmount}
-          onChange={(event) => handleGrossOrShareChange({ grossAmount: event.target.value })}
-          className="w-full rounded-xl border border-slate-200 px-4 py-3 text-sm"
-          placeholder="Total deal value"
-        />
-      </label>
-
-      <label className="space-y-2">
-        <span className="text-[9px] font-black uppercase tracking-widest text-slate-500">Share %</span>
-        <input
-          type="number"
-          min={0}
-          max={100}
-          step="0.01"
-          value={form.sharePercentage}
-          onChange={(event) => handleGrossOrShareChange({ sharePercentage: event.target.value })}
-          className="w-full rounded-xl border border-slate-200 px-4 py-3 text-sm"
-        />
-      </label>
-
-      <label className="space-y-2">
-        <span className="text-[9px] font-black uppercase tracking-widest text-slate-500">Amount received / net (₹) — gross × share %</span>
+        <span className="text-[9px] font-black uppercase tracking-widest text-slate-500">Amount received (₹)</span>
         <input
           required
           type="number"

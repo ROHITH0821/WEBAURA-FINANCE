@@ -19,14 +19,12 @@ export type RecurringRevenueRow = {
   added_by: string
   notes: string | null
   revenue_type: RevenueType
-  share_percentage: number
   agency_id: string | null
 }
 
 export type RecurringAgencyOption = {
   id: string
   name: string
-  default_share_percentage: number
 }
 
 export type RecurringProjectOption = {
@@ -48,9 +46,6 @@ export type RecurringPaymentLogRow = {
   transaction_ref: string
   notes: string | null
   created_at: string
-  gross_amount?: number | null
-  share_percentage?: number | null
-  deal_expenses?: number | null
 }
 
 export type RecurringPageMetrics = {
@@ -115,7 +110,7 @@ export const getRecurringRevenuePageData = unstable_cache(
         .order('full_name', { ascending: true }),
       supabase
         .from('agencies')
-        .select('id,name,default_share_percentage')
+        .select('id,name')
         .eq('is_active', true)
         .order('name', { ascending: true }),
     ])
@@ -127,7 +122,6 @@ export const getRecurringRevenuePageData = unstable_cache(
     const agencies: RecurringAgencyOption[] = (agenciesRes.data || []).map((a: any) => ({
       id: String(a.id),
       name: String(a.name),
-      default_share_percentage: Number(a.default_share_percentage ?? 100),
     }))
 
     if (recurringRes.error) {

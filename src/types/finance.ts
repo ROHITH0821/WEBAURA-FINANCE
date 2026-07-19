@@ -2,7 +2,7 @@ export type ProjectType = 'basic' | 'business' | 'ecommerce' | 'saas' | 'custom'
 export type PaymentMethod = 'upi' | 'bank_transfer' | 'cash' | 'cheque'
 export type PaymentStage = 'advance' | 'milestone_1' | 'milestone_2' | 'milestone_3' | 'final' | 'full'
 
-/** Single source of truth for expense categories — form, server validation, and DB CHECK must all match. */
+/** Default seeded slugs — kept for migration seed + fallback when catalog table is unavailable. */
 export const EXPENSE_CATEGORIES = [
   'infrastructure',
   'tools',
@@ -35,6 +35,17 @@ export const EXPENSE_CATEGORY_LABELS: Record<ExpenseCategory, string> = {
   other: 'Other',
 }
 
+/** Row from finance.expense_categories — admin-managed catalog for expense tagging. */
+export interface ExpenseCategoryCatalogItem {
+  id: string
+  slug: string
+  label: string
+  sort_order: number
+  is_active: boolean
+  is_system: boolean
+  created_at: string
+}
+
 /** How each project/recurring client's revenue is sourced — drives share-of-revenue reporting. */
 export const REVENUE_TYPES = ['agency_digital_marketing', 'website_maintenance', 'direct_client'] as const
 
@@ -56,7 +67,6 @@ export interface Founder {
 export interface Agency {
   id: string
   name: string
-  default_share_percentage: number
   is_active: boolean
   notes?: string | null
   created_at: string
@@ -76,7 +86,6 @@ export interface FinanceProject {
   total_expenses: number
   net_profit: number
   revenue_type: RevenueType
-  share_percentage: number
   agency_id?: string | null
 }
 
@@ -94,9 +103,6 @@ export interface PaymentEntry {
   verified: boolean
   verified_by?: string | null
   created_at: string
-  gross_amount?: number | null
-  share_percentage?: number | null
-  deal_expenses?: number | null
 }
 
 export interface Expense {
@@ -104,7 +110,7 @@ export interface Expense {
   requested_by: string
   amount: number
   spent_on: string
-  category: ExpenseCategory
+  category: string
   custom_category_label?: string | null
   project_id?: string | null
   agency_id?: string | null
@@ -112,6 +118,8 @@ export interface Expense {
   transaction_ref: string
   receipt_url?: string | null
   request_date: string
+  /** Exact add time for expenses created after migration 039; null on legacy rows. */
+  logged_at?: string | null
   status: 'pending' | 'approved' | 'paid' | 'rejected'
   approved_by?: string | null
   approved_at?: string | null

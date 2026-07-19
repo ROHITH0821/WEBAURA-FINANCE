@@ -26,10 +26,6 @@ export async function updateProjectAction(projectId: string, patch: any): Promis
     status: patch.status,
     project_lead: patch.project_lead,
     revenue_type: REVENUE_TYPES.includes(patch.revenue_type as RevenueType) ? patch.revenue_type : undefined,
-    share_percentage:
-      patch.share_percentage != null && String(patch.share_percentage) !== ''
-        ? Math.max(0, Math.min(100, Number(patch.share_percentage)))
-        : undefined,
     agency_id: patch.revenue_type === 'agency_digital_marketing' ? patch.agency_id || null : null,
     notes: patch.notes ?? null,
   }

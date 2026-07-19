@@ -3,16 +3,19 @@ import { cache } from 'react'
 import { auditDashboardStats, computeDashboardStats } from '@/lib/dashboard-stats'
 import { createStaticClient } from '@/lib/supabaseServer'
 import { currentMonthBounds } from '@/lib/recurring-revenue/utils'
+import { sortExpensesNewestFirst } from '@/lib/utils'
+import { logSupabaseQueryError } from '@/lib/supabase-log'
 
 // 1. Get Founder Identity (Cached for 1 hour)
 export const getFounders = unstable_cache(
   async () => {
     const supabase = createStaticClient()
-    const { data } = await supabase
+    const { data, error } = await supabase
       .from('admin_users')
       .select('email, full_name, role, is_active')
       .eq('is_active', true)
       .order('role', { ascending: true })
+    if (error) logSupabaseQueryError('[getFounders] admin_users query failed:', error)
     return data || []
   },
   ['founders-list'],
@@ -32,9 +35,9 @@ export const getDashboardStats = unstable_cache(
       ])
 
     // Audit fix: Supabase errors were swallowed — empty arrays made the dashboard show ₹0 instead of surfacing failure.
-    if (paymentsError) console.error('[getDashboardStats] payments_received query failed:', paymentsError)
-    if (expensesError) console.error('[getDashboardStats] expense_requests query failed:', expensesError)
-    if (projectsError) console.error('[getDashboardStats] projects query failed:', projectsError)
+    if (paymentsError) logSupabaseQueryError('[getDashboardStats] payments_received query failed:', paymentsError)
+    if (expensesError) logSupabaseQueryError('[getDashboardStats] expense_requests query failed:', expensesError)
+    if (projectsError) logSupabaseQueryError('[getDashboardStats] projects query failed:', projectsError)
 
     const stats = computeDashboardStats({
       payments: payments || [],
@@ -64,6 +67,30 @@ export const getDashboardStats = unstable_cache(
       }
       stats.totalRevenue += recurringAllTime
       stats.revenueThisMonth += recurringThisMonth
+      stats.netProfit = stats.totalRevenue - stats.totalExpenses
+    }
+
+    // Revenue add-ons (misc / other income) — included in company totals + equal founder share.
+    const { data: revenueAddons, error: addonsError } = await supabase
+      .from('revenue_addons')
+      .select('amount,received_date')
+
+    if (addonsError) {
+      const { isRevenueAddonsUnavailableError } = await import('@/lib/revenue-addons/errors')
+      if (!isRevenueAddonsUnavailableError(addonsError)) {
+        logSupabaseQueryError('[getDashboardStats] revenue_addons query failed:', addonsError)
+      }
+    } else {
+      let addonsAllTime = 0
+      let addonsThisMonth = 0
+      for (const row of revenueAddons || []) {
+        const amount = Number(row.amount || 0)
+        addonsAllTime += amount
+        const date = String(row.received_date || '').slice(0, 10)
+        if (date >= start && date <= end) addonsThisMonth += amount
+      }
+      stats.totalRevenue += addonsAllTime
+      stats.revenueThisMonth += addonsThisMonth
       stats.netProfit = stats.totalRevenue - stats.totalExpenses
     }
 
@@ -152,8 +179,7 @@ export function getProjectExpenses(projectId: string) {
         .select('*')
         .eq('project_id', projectId)
         .neq('status', 'rejected')
-        .order('request_date', { ascending: false })
-      return data || []
+      return sortExpensesNewestFirst(data || [])
     },
     ['project-expenses', projectId],
     { revalidate: 30, tags: ['expenses', 'projects'] },
@@ -220,13 +246,12 @@ export const getExpenseRequests = unstable_cache(
       .from('expense_requests')
       .select('*')
       .neq('status', 'rejected')
-      .order('request_date', { ascending: false })
 
     if (error) {
       console.error('getExpenseRequests error:', error)
       return []
     }
-    return data || []
+    return sortExpensesNewestFirst(data || [])
   },
   ['finance-expense-requests'],
   { revalidate: 15, tags: ['expenses'] }
@@ -236,43 +261,55 @@ export const getExpenseRequests = unstable_cache(
 export const getRevenueData = unstable_cache(
   async () => {
     const supabase = createStaticClient()
-    const [founders, projects, payments, expenses, recurringRevenue, recurringPayments, agencies] = await Promise.all([
-      // Audit fix: inactive founders were included in profit-share math, skewing per-founder splits.
-      supabase.from('admin_users').select('id, email, full_name').eq('is_active', true),
-      supabase.from('projects').select('id, project_lead, revenue_type, share_percentage, agency_id'),
-      supabase.from('payments_received').select('amount, project_id, gross_amount, share_percentage, deal_expenses'),
-      supabase.from('expense_requests').select('amount, requested_by, status, project_id, agency_id'),
-      // Revenue-by-type / by-agency breakdown: recurring clients don't flow through `payments`/`projects` above.
-      supabase.from('recurring_revenue').select('id, revenue_type, share_percentage, agency_id'),
-      supabase
-        .from('recurring_payments_log')
-        .select('recurring_id, amount_received, gross_amount, share_percentage, deal_expenses'),
-      supabase.from('agencies').select('id, name').eq('is_active', true),
-    ])
+    const [foundersList, projects, payments, expenses, recurringRevenue, recurringPayments, agencies, revenueAddons] =
+      await Promise.all([
+        // Reuse cached founders loader (same admin_users source) — avoids duplicate noisy query logs.
+        getFounders(),
+        supabase.from('projects').select('id, project_lead, revenue_type, agency_id'),
+        supabase.from('payments_received').select('amount, project_id'),
+        supabase.from('expense_requests').select('amount, requested_by, status, project_id, agency_id'),
+        // Revenue-by-type / by-agency breakdown: recurring clients don't flow through `payments`/`projects` above.
+        supabase.from('recurring_revenue').select('id, revenue_type, agency_id, project_id'),
+        supabase.from('recurring_payments_log').select('recurring_id, amount_received'),
+        supabase.from('agencies').select('id, name').eq('is_active', true),
+        supabase.from('revenue_addons').select('id, amount, received_date, title, category'),
+      ])
 
-    if (founders.error) console.error('[getRevenueData] admin_users query failed:', founders.error)
-    if (projects.error) console.error('[getRevenueData] projects query failed:', projects.error)
-    if (payments.error) console.error('[getRevenueData] payments_received query failed:', payments.error)
-    if (expenses.error) console.error('[getRevenueData] expense_requests query failed:', expenses.error)
-    if (recurringRevenue.error && recurringRevenue.error.code !== '42P01')
-      console.error('[getRevenueData] recurring_revenue query failed:', recurringRevenue.error)
-    if (recurringPayments.error && recurringPayments.error.code !== '42P01')
-      console.error('[getRevenueData] recurring_payments_log query failed:', recurringPayments.error)
-    if (agencies.error && agencies.error.code !== '42P01')
-      console.error('[getRevenueData] agencies query failed:', agencies.error)
+    logSupabaseQueryError('[getRevenueData] projects query failed:', projects.error)
+    logSupabaseQueryError('[getRevenueData] payments_received query failed:', payments.error)
+    logSupabaseQueryError('[getRevenueData] expense_requests query failed:', expenses.error)
+    if (recurringRevenue.error && recurringRevenue.error.code !== '42P01') {
+      logSupabaseQueryError('[getRevenueData] recurring_revenue query failed:', recurringRevenue.error)
+    }
+    if (recurringPayments.error && recurringPayments.error.code !== '42P01') {
+      logSupabaseQueryError('[getRevenueData] recurring_payments_log query failed:', recurringPayments.error)
+    }
+    if (agencies.error && agencies.error.code !== '42P01') {
+      logSupabaseQueryError('[getRevenueData] agencies query failed:', agencies.error)
+    }
 
     return {
-      founders: founders.data || [],
+      founders: foundersList || [],
       projects: projects.data || [],
       payments: payments.data || [],
       expenses: expenses.data || [],
       recurringRevenue: recurringRevenue.data || [],
       recurringPayments: recurringPayments.data || [],
       agencies: agencies.data || [],
+      revenueAddons: revenueAddons.error
+        ? (() => {
+            // Soft-fail only when the table/schema is missing.
+            const code = String((revenueAddons.error as { code?: string }).code || '')
+            if (code && code !== '42P01' && code !== 'PGRST205') {
+              logSupabaseQueryError('[getRevenueData] revenue_addons query failed:', revenueAddons.error)
+            }
+            return []
+          })()
+        : revenueAddons.data || [],
     }
   },
   ['revenue-full'],
-  { revalidate: 30, tags: ['finance-summary', 'payments', 'expenses', 'recurring-revenue', 'agencies'] }
+  { revalidate: 30, tags: ['finance-summary', 'payments', 'expenses', 'recurring-revenue', 'agencies', 'revenue-addons', 'founders'] }
 )
 
 // 10. Requests hub — shares cached expense rows with `getExpenseRequests()` (single DB hit per cache window).
@@ -299,13 +336,30 @@ export const getRequestsData = unstable_cache(
   { revalidate: 15, tags: ['expenses', 'referrals', 'recruitment'] }
 )
 
-// 10b. Get Agencies (Cached for 5 minutes) — for tagging expenses/projects/recurring clients by agency.
+// 10b. Get expense categories (Cached for 5 minutes) — dynamic catalog for expense tagging & filters.
+export const getExpenseCategories = unstable_cache(
+  async () => {
+    const admin = createStaticClient()
+    const { data, error } = await admin
+      .from('expense_categories')
+      .select('id,slug,label,sort_order,is_active,is_system,created_at')
+      .eq('is_active', true)
+      .order('sort_order', { ascending: true })
+      .order('label', { ascending: true })
+    if (error && error.code !== '42P01') console.error('[getExpenseCategories] query failed:', error)
+    return data || []
+  },
+  ['expense-categories-list'],
+  { revalidate: 300, tags: ['expense-categories'] }
+)
+
+// 10c. Get Agencies (Cached for 5 minutes) — for tagging expenses/projects/recurring clients by agency.
 export const getAgencies = unstable_cache(
   async () => {
     const admin = createStaticClient()
     const { data, error } = await admin
       .from('agencies')
-      .select('id,name,default_share_percentage,is_active')
+      .select('id,name,is_active')
       .eq('is_active', true)
       .order('name', { ascending: true })
     if (error && error.code !== '42P01') console.error('[getAgencies] agencies query failed:', error)

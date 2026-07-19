@@ -31,10 +31,6 @@ function parseRevenueType(value: string | undefined | null): RevenueType {
   return REVENUE_TYPES.includes(value as RevenueType) ? (value as RevenueType) : 'direct_client'
 }
 
-function parseSharePercentage(value: number | undefined | null): number {
-  return value != null && String(value) !== '' ? Math.max(0, Math.min(100, Number(value))) : 100
-}
-
 export async function createRecurringClientAction(input: {
   clientName: string
   projectId?: string | null
@@ -43,7 +39,6 @@ export async function createRecurringClientAction(input: {
   billingCycle: string
   nextDueDate: string
   revenueType?: string
-  sharePercentage?: number
   agencyId?: string | null
 }): Promise<ActionResult> {
   const gate = await requireActiveAdmin()
@@ -56,7 +51,6 @@ export async function createRecurringClientAction(input: {
   const billingCycle = parseBillingCycle(input.billingCycle)
   const projectId = String(input.projectId || '').trim() || null
   const revenueType = parseRevenueType(input.revenueType)
-  const sharePercentage = parseSharePercentage(input.sharePercentage)
   const agencyId = revenueType === 'agency_digital_marketing' ? String(input.agencyId || '').trim() || null : null
 
   if (!clientName) return { ok: false, error: 'Client name is required.' }
@@ -78,7 +72,6 @@ export async function createRecurringClientAction(input: {
     is_active: true,
     added_by: gate.email,
     revenue_type: revenueType,
-    share_percentage: sharePercentage,
     agency_id: agencyId,
     notes: null,
   })
@@ -98,7 +91,6 @@ export async function updateRecurringClientAction(input: {
   billingCycle: string
   nextDueDate: string
   revenueType?: string
-  sharePercentage?: number
   agencyId?: string | null
 }): Promise<ActionResult> {
   const gate = await requireActiveAdmin()
@@ -112,7 +104,6 @@ export async function updateRecurringClientAction(input: {
   const billingCycle = parseBillingCycle(input.billingCycle)
   const projectId = String(input.projectId || '').trim() || null
   const revenueType = parseRevenueType(input.revenueType)
-  const sharePercentage = parseSharePercentage(input.sharePercentage)
   const agencyId = revenueType === 'agency_digital_marketing' ? String(input.agencyId || '').trim() || null : null
 
   if (!id) return { ok: false, error: 'Missing recurring client id.' }
@@ -132,7 +123,6 @@ export async function updateRecurringClientAction(input: {
       billing_cycle: billingCycle,
       next_due_date: nextDueDate,
       revenue_type: revenueType,
-      share_percentage: sharePercentage,
       agency_id: agencyId,
     })
     .eq('id', id)
@@ -172,9 +162,6 @@ export async function logRecurringPaymentAction(input: {
   transactionRef: string
   receivedBy: string
   notes?: string
-  grossAmount?: number | null
-  sharePercentage?: number | null
-  dealExpenses?: number | null
 }): Promise<ActionResult> {
   const gate = await requireActiveAdmin()
   if (!gate.ok) return { ok: false, error: gate.error }
@@ -185,14 +172,6 @@ export async function logRecurringPaymentAction(input: {
   const receivedBy = String(input.receivedBy || '').trim()
   const amountReceived = Math.max(0, Math.round(Number(input.amountReceived)))
   const notes = String(input.notes || '').trim()
-  const grossAmount =
-    input.grossAmount != null && String(input.grossAmount) !== '' ? Math.max(0, Number(input.grossAmount)) : null
-  const sharePercentage =
-    input.sharePercentage != null && String(input.sharePercentage) !== ''
-      ? Math.max(0, Math.min(100, Number(input.sharePercentage)))
-      : null
-  const dealExpenses =
-    input.dealExpenses != null && String(input.dealExpenses) !== '' ? Math.max(0, Number(input.dealExpenses)) : null
 
   if (!recurringId) return { ok: false, error: 'Missing recurring client id.' }
   if (!paymentDate) return { ok: false, error: 'Payment date is required.' }
@@ -220,9 +199,6 @@ export async function logRecurringPaymentAction(input: {
     received_by: receivedBy,
     transaction_ref: transactionRef,
     notes: notes.length ? notes : null,
-    gross_amount: grossAmount,
-    share_percentage: sharePercentage,
-    deal_expenses: dealExpenses,
   })
 
   if (insertError) return { ok: false, error: insertError.message }

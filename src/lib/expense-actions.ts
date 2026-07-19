@@ -3,7 +3,7 @@
 import { revalidatePath, revalidateTag } from 'next/cache'
 import { createStaticClient } from '@/lib/supabaseServer'
 import { requireActiveAdmin, requireSuperAdmin } from '@/lib/admin-gates'
-import { EXPENSE_CATEGORIES, type ExpenseCategory } from '@/types/finance'
+import { isActiveExpenseCategorySlug } from '@/lib/expense-category-utils'
 
 const revalidate = (tag: string) => (revalidateTag as any)(tag)
 
@@ -79,8 +79,8 @@ export async function submitExpenseRequest(formData: {
   const proofRef = String(formData.transaction_ref || '').trim()
   if (!proofRef) return { error: 'Proof / transaction reference is required.' }
 
-  const category = String(formData.category || '').trim()
-  if (!EXPENSE_CATEGORIES.includes(category as ExpenseCategory)) {
+  const category = String(formData.category || '').trim().toLowerCase()
+  if (!(await isActiveExpenseCategorySlug(category))) {
     return { error: 'Invalid expense category.' }
   }
   const customCategoryLabel = String(formData.custom_category_label || '').trim()
@@ -95,26 +95,50 @@ export async function submitExpenseRequest(formData: {
   const agencyIdRaw = String(formData.agency_id || '').trim()
   const paidAt = new Date().toISOString()
 
-  const { data, error } = await supabase
+  let netProfitSnapshot: number | null = null
+  if (isSuper) {
+    try {
+      const { fetchLiveNetProfitRemaining } = await import('@/lib/expense-net-profit-snapshot')
+      const remainingBefore = await fetchLiveNetProfitRemaining(supabase)
+      netProfitSnapshot = remainingBefore - amount
+    } catch (e) {
+      console.error('submitExpenseRequest net profit snapshot failed:', e)
+      return { ok: false, error: 'Could not compute remaining net profit. Check ledger data and try again.' }
+    }
+  }
+
+  const baseRow = {
+    requested_by: actorEmail,
+    amount,
+    spent_on: spentOn,
+    category,
+    custom_category_label: category === 'other' ? customCategoryLabel : null,
+    project_id: projectIdRaw || null,
+    agency_id: agencyIdRaw || null,
+    transaction_ref: proofRef,
+    request_date: paidAt.slice(0, 10),
+    status: isSuper ? 'paid' : 'pending',
+    approved_by: isSuper ? actorEmail : null,
+    approved_at: isSuper ? paidAt : null,
+    paid_at: isSuper ? paidAt : null,
+    payment_transaction_ref: isSuper ? proofRef : null,
+  }
+
+  let { data, error } = await supabase
     .from('expense_requests')
     .insert({
-      requested_by: actorEmail,
-      amount,
-      spent_on: spentOn,
-      category,
-      custom_category_label: category === 'other' ? customCategoryLabel : null,
-      project_id: projectIdRaw || null,
-      agency_id: agencyIdRaw || null,
-      transaction_ref: proofRef,
-      request_date: paidAt.slice(0, 10),
-      status: isSuper ? 'paid' : 'pending',
-      approved_by: isSuper ? actorEmail : null,
-      approved_at: isSuper ? paidAt : null,
-      paid_at: isSuper ? paidAt : null,
-      payment_transaction_ref: isSuper ? proofRef : null,
+      ...baseRow,
+      logged_at: paidAt,
+      net_profit_snapshot: netProfitSnapshot,
     })
     .select()
     .single()
+
+  if (error && (error.code === '42703' || /logged_at|net_profit_snapshot/i.test(error.message))) {
+    const retry = await supabase.from('expense_requests').insert(baseRow).select().single()
+    data = retry.data
+    error = retry.error
+  }
 
   if (error) {
     console.error('submitExpenseRequest:', error)

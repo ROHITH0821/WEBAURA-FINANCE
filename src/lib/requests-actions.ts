@@ -75,6 +75,16 @@ export async function approveExpenseRequestAction(
     return { ok: false, error: 'This request is not pending or was already processed.' }
   }
 
+  let netProfitSnapshot: number
+  try {
+    const { fetchLiveNetProfitRemaining } = await import('@/lib/expense-net-profit-snapshot')
+    const remainingBefore = await fetchLiveNetProfitRemaining(supabase)
+    netProfitSnapshot = remainingBefore - Number((before as any).amount || 0)
+  } catch (e) {
+    console.error('approve expense net profit snapshot failed:', e)
+    return { ok: false, error: 'Could not compute remaining net profit. Check ledger data and try again.' }
+  }
+
   const { data, error } = await supabase
     .from('expense_requests')
     .update({
@@ -83,6 +93,7 @@ export async function approveExpenseRequestAction(
       approved_at: new Date().toISOString(),
       paid_at: new Date().toISOString(),
       payment_transaction_ref: paymentTransactionRef.trim(),
+      net_profit_snapshot: netProfitSnapshot,
     })
     .eq('id', expenseId)
     .eq('status', 'pending')

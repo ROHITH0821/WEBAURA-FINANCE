@@ -1,12 +1,15 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import * as navigation from 'next/navigation'
 import Link from 'next/link'
-import { ArrowLeft, Save, IndianRupee, Tag, FileText, Loader2, Briefcase, Building2, CheckCircle2 } from 'lucide-react'
+import { Save, IndianRupee, Tag, FileText, Loader2, Briefcase, Building2, CheckCircle2, Plus } from 'lucide-react'
+import BackButton from '@/components/BackButton'
+import { useAppRouter } from '@/hooks/useAppRouter'
 import { submitExpenseRequest } from '@/lib/expense-actions'
 import { getAgenciesForForm } from '@/lib/agency-actions'
-import { EXPENSE_CATEGORIES, EXPENSE_CATEGORY_LABELS, type Agency } from '@/types/finance'
+import { createExpenseCategoryAction, getExpenseCategoriesForForm } from '@/lib/expense-category-actions'
+import type { Agency, ExpenseCategoryCatalogItem } from '@/types/finance'
+import { EXPENSE_CATEGORIES, EXPENSE_CATEGORY_LABELS } from '@/types/finance'
 
 type ProjectOption = { id: string; label: string }
 
@@ -21,13 +24,17 @@ const EMPTY_FORM = {
 }
 
 export default function NewExpensePage() {
-  const router = typeof navigation.useRouter === 'function' ? navigation.useRouter() : null
+  const { back, refresh } = useAppRouter()
 
   const [loading, setLoading] = useState(false)
   const [bootstrapping, setBootstrapping] = useState(true)
   const [projects, setProjects] = useState<ProjectOption[]>([])
   const [projectsError, setProjectsError] = useState('')
   const [agencies, setAgencies] = useState<Agency[]>([])
+  const [categories, setCategories] = useState<ExpenseCategoryCatalogItem[]>([])
+  const [showNewCategory, setShowNewCategory] = useState(false)
+  const [newCategoryLabel, setNewCategoryLabel] = useState('')
+  const [categoryBusy, setCategoryBusy] = useState(false)
   const [role, setRole] = useState<'super_admin' | 'admin' | 'founder' | null>(null)
   const [formData, setFormData] = useState(EMPTY_FORM)
   const [error, setError] = useState('')
@@ -55,6 +62,9 @@ export default function NewExpensePage() {
 
         const agencyRes = await getAgenciesForForm()
         if (!cancelled && agencyRes.ok) setAgencies(agencyRes.agencies)
+
+        const categoryRes = await getExpenseCategoriesForForm()
+        if (!cancelled && categoryRes.ok) setCategories(categoryRes.categories)
       } catch (e: unknown) {
         if (!cancelled) {
           setProjectsError(e instanceof Error ? e.message : 'Network error loading projects')
@@ -74,6 +84,42 @@ export default function NewExpensePage() {
     return () => window.clearTimeout(t)
   }, [success])
 
+  const handleAddCategory = async () => {
+    const label = newCategoryLabel.trim()
+    if (!label) return
+    setCategoryBusy(true)
+    try {
+      const res = await createExpenseCategoryAction({ label })
+      if (res.ok) {
+        setCategories((prev) =>
+          [...prev.filter((c) => c.slug !== res.category.slug), res.category].sort(
+            (a, b) => a.sort_order - b.sort_order || a.label.localeCompare(b.label),
+          ),
+        )
+        setFormData((prev) => ({ ...prev, category: res.category.slug }))
+        setNewCategoryLabel('')
+        setShowNewCategory(false)
+      } else {
+        setError(res.error)
+      }
+    } finally {
+      setCategoryBusy(false)
+    }
+  }
+
+  const categoryOptions: ExpenseCategoryCatalogItem[] =
+    categories.length > 0
+      ? categories
+      : EXPENSE_CATEGORIES.map((slug, index) => ({
+          id: slug,
+          slug,
+          label: EXPENSE_CATEGORY_LABELS[slug],
+          sort_order: (index + 1) * 10,
+          is_active: true,
+          is_system: true,
+          created_at: '',
+        }))
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setLoading(true)
@@ -91,7 +137,7 @@ export default function NewExpensePage() {
       if (res?.ok) {
         setFormData(EMPTY_FORM)
         setSuccess(res.message || 'Request submitted successfully.')
-        router?.refresh()
+        refresh()
         window.scrollTo({ top: 0, behavior: 'smooth' })
         return
       }
@@ -114,13 +160,7 @@ export default function NewExpensePage() {
   return (
     <div className="mx-auto w-full min-w-0 max-w-full space-y-6 sm:space-y-10">
       <div className="flex min-w-0 items-start gap-3 sm:gap-4">
-        <button
-          type="button"
-          onClick={() => router?.back()}
-          className="mt-0.5 shrink-0 rounded-full p-2 text-slate-400 transition-colors hover:bg-slate-100 hover:text-slate-900 touch-manipulation"
-        >
-          <ArrowLeft className="h-5 w-5" />
-        </button>
+        <BackButton fallbackHref="/expenses" className="mt-0.5" />
         <div className="min-w-0 flex-1">
           <h2 className="text-2xl font-black uppercase tracking-tight text-slate-900 sm:text-3xl">
             {isSuperAdmin ? 'Log expense' : 'Expense request'}
@@ -205,15 +245,56 @@ export default function NewExpensePage() {
                   required
                   value={formData.category}
                   onChange={(e) => setFormData({ ...formData, category: e.target.value })}
-                  className="box-border min-w-0 w-full max-w-full cursor-pointer appearance-none rounded-xl border border-slate-200 bg-slate-50 py-4 pl-12 pr-10 text-sm font-bold text-slate-900 outline-none transition-colors focus:border-slate-900 sm:pr-12"
+                  disabled={bootstrapping}
+                  className="box-border min-w-0 w-full max-w-full cursor-pointer appearance-none rounded-xl border border-slate-200 bg-slate-50 py-4 pl-12 pr-10 text-sm font-bold text-slate-900 outline-none transition-colors focus:border-slate-900 disabled:opacity-60 sm:pr-12"
                 >
-                  {EXPENSE_CATEGORIES.map((cat) => (
-                    <option key={cat} value={cat}>
-                      {EXPENSE_CATEGORY_LABELS[cat]}
+                  {categoryOptions.map((cat) => (
+                    <option key={cat.slug} value={cat.slug}>
+                      {cat.label}
                     </option>
                   ))}
                 </select>
               </div>
+              {showNewCategory ? (
+                <div className="flex flex-col gap-3 sm:flex-row">
+                  <input
+                    type="text"
+                    value={newCategoryLabel}
+                    onChange={(e) => setNewCategoryLabel(e.target.value)}
+                    placeholder="New category name"
+                    className="box-border min-w-0 flex-1 rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm font-bold text-slate-900 outline-none transition-colors focus:border-slate-900"
+                  />
+                  <div className="flex gap-3">
+                    <button
+                      type="button"
+                      disabled={categoryBusy || !newCategoryLabel.trim()}
+                      onClick={handleAddCategory}
+                      className="rounded-xl bg-slate-900 px-5 py-3 text-[10px] font-black uppercase tracking-widest text-white hover:bg-slate-800 disabled:opacity-40"
+                    >
+                      {categoryBusy ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Add'}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setShowNewCategory(false)
+                        setNewCategoryLabel('')
+                      }}
+                      className="rounded-xl border border-slate-200 px-5 py-3 text-[10px] font-black uppercase tracking-widest text-slate-500 hover:bg-slate-50"
+                    >
+                      Cancel
+                    </button>
+                  </div>
+                </div>
+              ) : (
+                <button
+                  type="button"
+                  onClick={() => setShowNewCategory(true)}
+                  className="inline-flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-slate-500 hover:text-slate-900"
+                >
+                  <Plus className="h-3.5 w-3.5" />
+                  New category
+                </button>
+              )}
             </div>
           </div>
 
@@ -319,7 +400,7 @@ export default function NewExpensePage() {
           <div className="flex min-w-0 flex-col gap-3 border-t border-slate-100 pt-6 sm:flex-row sm:gap-4 sm:pt-8">
             <button
               type="button"
-              onClick={() => router?.back()}
+              onClick={() => back('/expenses')}
               className="order-2 w-full min-w-0 touch-manipulation rounded-xl border border-slate-200 py-4 text-[10px] font-black uppercase tracking-[0.2em] text-slate-500 transition-colors hover:bg-slate-50 hover:text-slate-900 sm:order-1 sm:flex-1 sm:py-5"
             >
               Cancel

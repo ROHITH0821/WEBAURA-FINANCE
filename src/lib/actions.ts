@@ -7,7 +7,8 @@ import { redirect } from 'next/navigation'
 import { requireActiveAdmin, requireSuperAdmin, type GateOk } from '@/lib/admin-gates'
 import { formatCurrency } from '@/lib/utils'
 import { escapeHtml, sendFinanceTransactionalEmail } from '@/lib/send-finance-email'
-import { EXPENSE_CATEGORIES, REVENUE_TYPES, type ExpenseCategory, type RevenueType } from '@/types/finance'
+import { isActiveExpenseCategorySlug } from '@/lib/expense-category-utils'
+import { REVENUE_TYPES, type RevenueType } from '@/types/finance'
 
 const revalidate = (tag: string) => (revalidateTag as any)(tag)
 
@@ -59,10 +60,6 @@ export async function createProject(formData: any) {
   const revenueType = REVENUE_TYPES.includes(formData.revenue_type as RevenueType)
     ? (formData.revenue_type as RevenueType)
     : 'direct_client'
-  const sharePercentage =
-    formData.share_percentage != null && String(formData.share_percentage) !== ''
-      ? Math.max(0, Math.min(100, Number(formData.share_percentage)))
-      : 100
 
   const { data, error } = await supabase
     .from('projects')
@@ -79,7 +76,6 @@ export async function createProject(formData: any) {
       status: formData.status || 'active',
       project_lead: formData.project_lead,
       revenue_type: revenueType,
-      share_percentage: sharePercentage,
       agency_id: revenueType === 'agency_digital_marketing' ? formData.agency_id || null : null,
       notes: formData.notes || null,
     })
@@ -179,8 +175,8 @@ export async function createExpense(formData: any) {
     return { error: 'Proof / transaction reference is required.' }
   }
 
-  const category = String(formData.category || '').trim()
-  if (!EXPENSE_CATEGORIES.includes(category as ExpenseCategory)) {
+  const category = String(formData.category || '').trim().toLowerCase()
+  if (!(await isActiveExpenseCategorySlug(category))) {
     return { error: 'Invalid expense category.' }
   }
   const customCategoryLabel = String(formData.custom_category_label || '').trim()
@@ -193,6 +189,20 @@ export async function createExpense(formData: any) {
   // Always attribute to the signed-in user (client form cannot spoof).
   const projectIdRaw = String(formData.project_id || '').trim()
   const agencyIdRaw = String(formData.agency_id || '').trim()
+
+  let netProfitSnapshot: number | null = null
+  if (isSuper) {
+    try {
+      const { fetchLiveNetProfitRemaining } = await import('@/lib/expense-net-profit-snapshot')
+      const remainingBefore = await fetchLiveNetProfitRemaining(supabase)
+      netProfitSnapshot = remainingBefore - amount
+    } catch (e) {
+      console.error('createExpense net profit snapshot failed:', e)
+      return { error: 'Could not compute remaining net profit. Check ledger data and try again.' }
+    }
+  }
+
+  const nowIso = new Date().toISOString()
 
   const { data, error } = await supabase
     .from('expense_requests')
@@ -207,18 +217,54 @@ export async function createExpense(formData: any) {
       client_name_manual: formData.client_name_manual || null,
       transaction_ref: proofRef,
       receipt_url: formData.receipt_url || null,
-      request_date: new Date().toISOString().slice(0, 10),
+      request_date: nowIso.slice(0, 10),
+      logged_at: nowIso,
       status: isSuper ? 'paid' : 'pending',
       approved_by: isSuper ? gate.email : null,
-      approved_at: isSuper ? new Date().toISOString() : null,
-      paid_at: isSuper ? new Date().toISOString() : null,
+      approved_at: isSuper ? nowIso : null,
+      paid_at: isSuper ? nowIso : null,
       payment_transaction_ref: isSuper ? proofRef : null,
+      net_profit_snapshot: netProfitSnapshot,
     })
     .select()
     .single()
 
   if (error) {
     console.error('Create Expense Error:', error)
+    if (error.code === '42703' || /logged_at|net_profit_snapshot/i.test(error.message || '')) {
+      const { data: fallbackData, error: fallbackError } = await supabase
+        .from('expense_requests')
+        .insert({
+          requested_by: gate.email,
+          amount,
+          spent_on: spentOn,
+          category,
+          custom_category_label: category === 'other' ? customCategoryLabel : null,
+          project_id: projectIdRaw || null,
+          agency_id: agencyIdRaw || null,
+          client_name_manual: formData.client_name_manual || null,
+          transaction_ref: proofRef,
+          receipt_url: formData.receipt_url || null,
+          request_date: nowIso.slice(0, 10),
+          status: isSuper ? 'paid' : 'pending',
+          approved_by: isSuper ? gate.email : null,
+          approved_at: isSuper ? nowIso : null,
+          paid_at: isSuper ? nowIso : null,
+          payment_transaction_ref: isSuper ? proofRef : null,
+        })
+        .select()
+        .single()
+
+      if (fallbackError) {
+        console.error('Create Expense fallback Error:', fallbackError)
+        return { error: fallbackError.message }
+      }
+
+      revalidate('expenses')
+      revalidate('finance-summary')
+      revalidate('audit')
+      return { data: fallbackData }
+    }
     return { error: error.message }
   }
 
@@ -256,6 +302,16 @@ export async function approveExpense(expenseId: string, adminEmail?: string, pay
     return { error: 'This request is not pending or was already processed.' }
   }
 
+  let netProfitSnapshot: number
+  try {
+    const { fetchLiveNetProfitRemaining } = await import('@/lib/expense-net-profit-snapshot')
+    const remainingBefore = await fetchLiveNetProfitRemaining(supabase)
+    netProfitSnapshot = remainingBefore - Number((before as any).amount || 0)
+  } catch (e) {
+    console.error('approveExpense net profit snapshot failed:', e)
+    return { error: 'Could not compute remaining net profit. Check ledger data and try again.' }
+  }
+
   const { data, error } = await supabase
     .from('expense_requests')
     .update({ 
@@ -264,6 +320,7 @@ export async function approveExpense(expenseId: string, adminEmail?: string, pay
       approved_at: new Date().toISOString(),
       paid_at: new Date().toISOString(),
       payment_transaction_ref: paymentTransactionRef || null,
+      net_profit_snapshot: netProfitSnapshot,
     })
     .eq('id', expenseId)
     .eq('status', 'pending')

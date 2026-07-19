@@ -50,7 +50,25 @@ export async function createClient() {
             const originalThen = (query as any).then.bind(query);
             (query as any).then = ((onfulfilled: any, onrejected: any) => {
               return originalThen((res: any) => {
-                if (res.error && (res.error.message?.includes('schema') || res.error.code === '42P01')) {
+                if (
+                  res.error &&
+                  (res.error.message?.includes('schema') ||
+                    res.error.message?.includes('schema cache') ||
+                    res.error.message?.includes('Could not find the table') ||
+                    res.error.code === '42P01' ||
+                    res.error.code === 'PGRST205' ||
+                    res.error.code === 'PGRST204' ||
+                    // Empty PostgREST payloads still mean "not available on this schema"
+                    (!res.error.code && !res.error.message && tableName === 'admin_users'))
+                ) {
+                  if (tableName === 'admin_users') {
+                    return (target.schema('admin').from(tableName) as any).then((adminRes: any) => {
+                      if (adminRes?.error) {
+                        return (target.from(tableName) as any).then(onfulfilled, onrejected)
+                      }
+                      return onfulfilled ? onfulfilled(adminRes) : adminRes
+                    }, onrejected)
+                  }
                   return (target.from(tableName) as any).then(onfulfilled, onrejected)
                 }
                 return onfulfilled ? onfulfilled(res) : res;
@@ -93,7 +111,25 @@ export function createStaticClient() {
             const originalThen = (query as any).then.bind(query);
             (query as any).then = ((onfulfilled: any, onrejected: any) => {
               return originalThen((res: any) => {
-                if (res.error && (res.error.message?.includes('schema') || res.error.code === '42P01')) {
+                if (
+                  res.error &&
+                  (res.error.message?.includes('schema') ||
+                    res.error.message?.includes('schema cache') ||
+                    res.error.message?.includes('Could not find the table') ||
+                    res.error.code === '42P01' ||
+                    res.error.code === 'PGRST205' ||
+                    res.error.code === 'PGRST204' ||
+                    // Empty PostgREST payloads still mean "not available on this schema"
+                    (!res.error.code && !res.error.message && tableName === 'admin_users'))
+                ) {
+                  if (tableName === 'admin_users') {
+                    return (target.schema('admin').from(tableName) as any).then((adminRes: any) => {
+                      if (adminRes?.error) {
+                        return (target.from(tableName) as any).then(onfulfilled, onrejected)
+                      }
+                      return onfulfilled ? onfulfilled(adminRes) : adminRes
+                    }, onrejected)
+                  }
                   return (target.from(tableName) as any).then(onfulfilled, onrejected)
                 }
                 return onfulfilled ? onfulfilled(res) : res;
