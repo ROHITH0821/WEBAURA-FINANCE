@@ -44,6 +44,7 @@ export async function proxy(request: NextRequest) {
   if (
     pathname.startsWith('/login') || 
     pathname.startsWith('/api/auth') || 
+    pathname.startsWith('/api/cron') ||
     pathname.startsWith('/auth/callback') ||
     pathname.startsWith('/_next') ||
     pathname.includes('.') // static files (favicon, images, etc.)

@@ -1,7 +1,7 @@
 /** All-time financial summary for the dashboard (not filtered by month). */
 
 export type DashboardStatsInput = {
-  payments: { amount: number | string | null }[]
+  payments: { amount: number | string | null; payment_date?: string | null }[]
   expenses: { amount: number | string | null; status?: string | null }[]
   projects: {
     agreed_value?: number | string | null
@@ -11,7 +11,10 @@ export type DashboardStatsInput = {
 }
 
 export type DashboardStats = {
+  /** Lifetime project payments plus recurring collections (recurring added in getDashboardStats). */
   totalRevenue: number
+  /** Project + recurring payments received in the current calendar month. */
+  revenueThisMonth: number
   totalExpenses: number
   orderBookValue: number
   outstanding: number
@@ -32,8 +35,28 @@ function toAmount(value: number | string | null | undefined): number {
 export function computeDashboardStats(input: DashboardStatsInput): DashboardStats {
   const totalRevenue = (input.payments || []).reduce((sum, row) => sum + toAmount(row.amount), 0)
 
+  // Audit fix: revenueThisMonth was missing — dashboard "Total Revenue This Month" needs payment_date filtering.
+  const { start, end } = (() => {
+    const now = new Date()
+    const year = now.getFullYear()
+    const month = now.getMonth()
+    const monthStart = `${year}-${String(month + 1).padStart(2, '0')}-01`
+    const lastDay = new Date(year, month + 1, 0).getDate()
+    const monthEnd = `${year}-${String(month + 1).padStart(2, '0')}-${String(lastDay).padStart(2, '0')}`
+    return { start: monthStart, end: monthEnd }
+  })()
+
+  const revenueThisMonth = (input.payments || []).reduce((sum, row) => {
+    const date = String(row.payment_date || '').slice(0, 10)
+    if (!date || date < start || date > end) return sum
+    return sum + toAmount(row.amount)
+  }, 0)
+
   const totalExpenses = (input.expenses || [])
-    .filter((row) => String(row.status || '').toLowerCase() === 'paid')
+    .filter((row) => {
+      const status = String(row.status || '').toLowerCase()
+      return status === 'paid'
+    })
     .reduce((sum, row) => sum + toAmount(row.amount), 0)
 
   const activeProjects = (input.projects || []).filter(
@@ -52,6 +75,7 @@ export function computeDashboardStats(input: DashboardStatsInput): DashboardStat
 
   return {
     totalRevenue,
+    revenueThisMonth,
     totalExpenses,
     orderBookValue,
     outstanding,

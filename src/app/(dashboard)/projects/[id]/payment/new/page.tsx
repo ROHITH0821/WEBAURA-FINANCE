@@ -29,7 +29,7 @@ export default async function NewPaymentPage({
   const myEmail = String(user?.email || '')
 
   const [{ data: project }, { data: founders }] = await Promise.all([
-    admin.from('projects').select('client_name, project_code').eq('id', id).maybeSingle(),
+    admin.from('projects').select('client_name, project_code, revenue_type, share_percentage').eq('id', id).maybeSingle(),
     admin.from('admin_users').select('email, full_name, is_active').eq('is_active', true),
   ])
 

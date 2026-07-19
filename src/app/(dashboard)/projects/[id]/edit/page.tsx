@@ -33,6 +33,11 @@ export default async function ProjectEditPage({
 
   const { data: project } = await admin.from('projects').select('*').eq('id', id).single()
   const { data: founders } = await admin.from('admin_users').select('email, full_name, is_active').eq('is_active', true)
+  const { data: agencies } = await admin
+    .from('agencies')
+    .select('id,name,default_share_percentage,is_active,notes,created_at')
+    .eq('is_active', true)
+    .order('name', { ascending: true })
 
   if (!project) {
     return (
@@ -42,6 +47,6 @@ export default async function ProjectEditPage({
     )
   }
 
-  return <ProjectEditClient project={project} founders={founders || []} />
+  return <ProjectEditClient project={project} founders={founders || []} agencies={agencies || []} />
 }
 

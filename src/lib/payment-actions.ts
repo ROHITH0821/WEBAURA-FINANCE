@@ -17,6 +17,9 @@ export async function recordPaymentAction(input: {
   paymentStage: 'advance' | 'milestone_1' | 'milestone_2' | 'milestone_3' | 'final' | 'full'
   transactionRef: string
   notes?: string
+  grossAmount?: number | null
+  sharePercentage?: number | null
+  dealExpenses?: number | null
 }): Promise<ActionResult> {
   console.log('recordPaymentAction started', { projectId: input.projectId })
   
@@ -47,6 +50,15 @@ export async function recordPaymentAction(input: {
     const admin = createStaticClient()
     console.log('Inserting payment into finance.payments_received...')
     
+    const grossAmount =
+      input.grossAmount != null && String(input.grossAmount) !== '' ? Math.max(0, Number(input.grossAmount)) : null
+    const sharePercentage =
+      input.sharePercentage != null && String(input.sharePercentage) !== ''
+        ? Math.max(0, Math.min(100, Number(input.sharePercentage)))
+        : null
+    const dealExpenses =
+      input.dealExpenses != null && String(input.dealExpenses) !== '' ? Math.max(0, Number(input.dealExpenses)) : null
+
     const { error } = await admin.from('payments_received').insert({
       project_id: projectId,
       amount,
@@ -58,6 +70,9 @@ export async function recordPaymentAction(input: {
       notes: notes.length ? notes : null,
       verified: false,
       verified_by: null,
+      gross_amount: grossAmount,
+      share_percentage: sharePercentage,
+      deal_expenses: dealExpenses,
     })
 
     if (error) {

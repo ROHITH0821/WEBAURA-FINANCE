@@ -9,7 +9,7 @@ import {
   resolveFinanceRole,
 } from '@/lib/finance-role'
 import { createClient } from '@/lib/supabaseServer'
-import { getExpenseRequests, getFounders } from '@/lib/data'
+import { getExpenseRequests, getFounders, getDashboardStats, getAgencies } from '@/lib/data'
 import ExpenseRow from '@/components/ExpenseRow'
 import ExpensesFilters from './expenses-filters'
 
@@ -28,11 +28,14 @@ export default async function ExpensesPage({
   } = await supabase.auth.getUser()
   const myEmail = String(user?.email || '').trim().toLowerCase()
 
-  const [meRow, expenses, foundersData] = await Promise.all([
+  const [meRow, expenses, foundersData, statsData, agencies] = await Promise.all([
     fetchAdminUserByEmail(myEmail),
     getExpenseRequests(),
     getFounders(),
+    getDashboardStats(),
+    getAgencies(),
   ])
+  const agencyNameById = new Map((agencies || []).map((a: any) => [String(a.id), String(a.name)]))
   const founders = (foundersData || [])
     .filter((f) => Boolean(f?.email))
     .map((f) => ({
@@ -122,6 +125,9 @@ export default async function ExpensesPage({
 
   const pendingCount = filteredExpenses.filter((e) => String(e.status || '').toLowerCase() === 'pending').length
 
+  /** Same all-time total as the dashboard Net Profit card. */
+  const portalNetProfit = statsData.netProfit
+
   const isDefaultView =
     effectiveView === (canViewOrgLedger ? 'all' : 'mine') && statusParam === 'all' && !founderParam && !searchParam
   const filtersActive = !isDefaultView
@@ -206,7 +212,9 @@ export default async function ExpensesPage({
               <ExpenseRow
                 key={expense.id}
                 expense={expense}
+                portalNetProfit={portalNetProfit}
                 founders={founders}
+                agencyName={expense.agency_id ? agencyNameById.get(String(expense.agency_id)) : undefined}
                 canApproveAndPay={isSuperApprover}
                 canDelete={isSuperAdmin}
                 currentUserEmail={user?.email || undefined}

@@ -3,12 +3,16 @@
 import { useState } from 'react'
 import * as navigation from 'next/navigation'
 import { Receipt, Tag, Calendar, CheckCircle2, Loader2, X, Trash2 } from 'lucide-react'
-import { formatCurrency } from '@/lib/utils'
+import { formatCurrency, formatExpenseCategory } from '@/lib/utils'
 import { approveExpense, deleteExpense } from '@/lib/actions'
 
 interface ExpenseRowProps {
   expense: any
+  /** All-time net profit — same figure as the dashboard summary card. */
+  portalNetProfit?: number
   founders: any[]
+  /** Agency this expense is tagged to, if any (resolved server-side from expense.agency_id). */
+  agencyName?: string
   /** Super admin only: approve & pay from ledger */
   canApproveAndPay?: boolean
   /** Super admin only: remove from ledger (audit retained) */
@@ -18,7 +22,9 @@ interface ExpenseRowProps {
 
 export default function ExpenseRow({
   expense,
+  portalNetProfit = 0,
   founders,
+  agencyName,
   canApproveAndPay = false,
   canDelete = false,
   currentUserEmail,
@@ -88,6 +94,8 @@ export default function ExpenseRow({
 
   if (hidden) return null
 
+  const netProfit = Number.isFinite(portalNetProfit) ? portalNetProfit : 0
+
   return (
     <article className="group min-w-0 border-b border-slate-100 bg-white px-4 py-5 transition-colors last:border-b-0 hover:bg-[#f7f7dc]/25 md:px-8 md:py-6">
       <div className="flex min-w-0 flex-col gap-4">
@@ -103,7 +111,8 @@ export default function ExpenseRow({
               <p className="mt-1 flex min-w-0 flex-wrap items-center gap-1.5 text-[10px] font-bold uppercase tracking-wider text-slate-400">
                 <Tag className="h-3 w-3 shrink-0" aria-hidden />
                 <span className="break-all">
-                  {expense.category || 'misc'} • {founderName}
+                  {formatExpenseCategory(expense)} • {founderName}
+                  {agencyName ? ` • ${agencyName}` : ''}
                 </span>
               </p>
               <div className="mt-2 flex flex-wrap items-center gap-2 text-xs font-bold text-slate-500">
@@ -131,11 +140,26 @@ export default function ExpenseRow({
               )}
             </div>
           </div>
-          <div className="shrink-0 text-left sm:text-right">
+          <div className="shrink-0 text-left sm:min-w-[8.5rem] sm:text-right">
             <p className="text-[9px] font-black uppercase tracking-widest text-slate-400 sm:hidden">Amount</p>
             <p className="font-black tabular-nums tracking-tight text-slate-900 text-lg md:text-xl">
               {formatCurrency(expense.amount)}
             </p>
+            <div className="mt-3 rounded-xl border border-slate-200 bg-slate-50/90 px-3 py-2.5 sm:ml-auto sm:inline-block sm:min-w-[8.5rem]">
+              <p className="text-[8px] font-black uppercase tracking-[0.16em] text-slate-500">
+                Net Profit
+              </p>
+              <p
+                className={`mt-0.5 font-black tabular-nums tracking-tight text-base md:text-lg ${
+                  netProfit >= 0 ? 'text-emerald-600' : 'text-rose-600'
+                }`}
+              >
+                {formatCurrency(netProfit)}
+              </p>
+              <p className="mt-1 text-[8px] font-bold uppercase tracking-wider text-slate-400">
+                Dashboard total
+              </p>
+            </div>
           </div>
         </div>
 

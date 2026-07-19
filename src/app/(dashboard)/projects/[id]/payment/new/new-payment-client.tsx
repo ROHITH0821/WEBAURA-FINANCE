@@ -12,8 +12,10 @@ import {
   CreditCard,
   FileText,
   Loader2,
+  Percent,
 } from 'lucide-react'
 import { recordPaymentAction } from '@/lib/payment-actions'
+import { REVENUE_TYPE_LABELS, type RevenueType } from '@/types/finance'
 
 type FounderOption = { email: string; name: string }
 
@@ -32,8 +34,11 @@ export default function NewPaymentClient({
 
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
+  const defaultShare = project?.share_percentage != null ? String(project.share_percentage) : '100'
   const [formData, setFormData] = useState({
     amount: '',
+    grossAmount: '',
+    sharePercentage: defaultShare,
     received_date: new Date().toISOString().split('T')[0],
     received_by: defaultReceivedBy || '',
     payment_method: 'bank_transfer' as 'upi' | 'bank_transfer' | 'cash' | 'cheque',
@@ -41,6 +46,21 @@ export default function NewPaymentClient({
     transaction_ref: '',
     notes: '',
   })
+
+  // Portal computes the net = gross x share %. Amount stays editable so it can be overridden.
+  // Expenses for agency deals are tracked separately, via the Expenses ledger tagged to the agency.
+  const handleGrossOrShareChange = (next: { grossAmount?: string; sharePercentage?: string }) => {
+    setFormData((prev) => {
+      const merged = { ...prev, ...next }
+      const gross = Number(merged.grossAmount)
+      const share = Number(merged.sharePercentage)
+      const computedNet =
+        merged.grossAmount && Number.isFinite(gross) && Number.isFinite(share)
+          ? Math.round(gross * (share / 100))
+          : prev.amount
+      return { ...merged, amount: merged.grossAmount ? String(computedNet) : merged.amount }
+    })
+  }
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -58,6 +78,8 @@ export default function NewPaymentClient({
         paymentStage: formData.payment_stage as any,
         transactionRef: formData.transaction_ref,
         notes: formData.notes,
+        grossAmount: formData.grossAmount ? Number(formData.grossAmount) : null,
+        sharePercentage: formData.sharePercentage ? Number(formData.sharePercentage) : null,
       })
 
       // If the server action redirects, the code below won't execute.
@@ -82,19 +104,67 @@ export default function NewPaymentClient({
           <h2 className="text-3xl font-black tracking-tight text-slate-900 uppercase">
             Record Payment
           </h2>
-          <p className="text-slate-500 font-black uppercase tracking-[0.2em] text-[10px]">
+          <p className="text-slate-500 font-black uppercase tracking-[0.2em] text-[10px] flex items-center gap-2">
             Log transaction for {project?.client_name || 'Loading...'} (
             {project?.project_code || '...'})
+            {project?.revenue_type ? (
+              <span className="inline-flex items-center rounded-full bg-slate-100 px-3 py-1 text-slate-700 tracking-widest">
+                {REVENUE_TYPE_LABELS[project.revenue_type as RevenueType] || project.revenue_type}
+              </span>
+            ) : null}
           </p>
         </div>
       </div>
 
       <div className="max-w-3xl bg-white border border-slate-200 rounded-2xl shadow-sm overflow-hidden">
         <form onSubmit={handleSubmit} className="p-10 space-y-8">
+          <div className="rounded-xl border border-slate-100 bg-slate-50/60 p-6 space-y-6">
+            <p className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-500">
+              Gross &amp; share (optional) — leave blank to just enter the net amount below
+            </p>
+            <div className="grid grid-cols-2 gap-8">
+              <div className="space-y-3">
+                <label className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400 ml-1">
+                  Gross Amount (₹)
+                </label>
+                <div className="relative">
+                  <IndianRupee className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+                  <input
+                    type="number"
+                    value={formData.grossAmount}
+                    onChange={(e) => handleGrossOrShareChange({ grossAmount: e.target.value })}
+                    placeholder="Total deal value"
+                    className="w-full bg-white border border-slate-200 rounded-xl py-4 pl-12 pr-4 text-slate-900 outline-none focus:border-slate-900 transition-all font-bold text-sm"
+                  />
+                </div>
+              </div>
+              <div className="space-y-3">
+                <label className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400 ml-1">
+                  Share %
+                </label>
+                <div className="relative">
+                  <Percent className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+                  <input
+                    type="number"
+                    min={0}
+                    max={100}
+                    step="0.01"
+                    value={formData.sharePercentage}
+                    onChange={(e) => handleGrossOrShareChange({ sharePercentage: e.target.value })}
+                    className="w-full bg-white border border-slate-200 rounded-xl py-4 pl-12 pr-4 text-slate-900 outline-none focus:border-slate-900 transition-all font-bold text-sm"
+                  />
+                </div>
+              </div>
+            </div>
+            <p className="text-[9px] font-bold text-slate-400">
+              Net = Gross × Share % — expenses for this agency are tracked separately in the Expenses ledger (tag them to the agency there), not per payment.
+            </p>
+          </div>
+
           <div className="grid grid-cols-2 gap-8">
             <div className="space-y-3">
               <label className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400 ml-1">
-                Amount Received (₹)
+                Amount Received / Net (₹)
               </label>
               <div className="relative">
                 <IndianRupee className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
@@ -107,6 +177,9 @@ export default function NewPaymentClient({
                   className="w-full bg-slate-50 border border-slate-200 rounded-xl py-4 pl-12 pr-4 text-slate-900 outline-none focus:border-slate-900 transition-all font-bold text-sm"
                 />
               </div>
+              <p className="text-[9px] font-bold text-slate-400 ml-1">
+                Auto-filled from gross × share % — this is the number that counts toward revenue totals; edit it directly if it needs to differ.
+              </p>
             </div>
             <div className="space-y-3">
               <label className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400 ml-1">

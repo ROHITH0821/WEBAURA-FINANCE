@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react'
 import Link from 'next/link'
 import * as navigation from 'next/navigation'
 import { History, Receipt, Shield, Plus, Calendar } from 'lucide-react'
-import { formatCurrency } from '@/lib/utils'
+import { formatCurrency, formatExpenseCategory } from '@/lib/utils'
 import ClientVault from '@/components/credentials/ClientVault'
 import { ToastProvider } from '@/components/Toast'
 
@@ -149,7 +149,7 @@ export default function ProjectDetailClient({
                     <div>
                       <p className="text-xs font-black text-slate-900 uppercase">{e.spent_on}</p>
                       <p className="text-[9px] font-bold text-slate-400 uppercase tracking-widest mt-1">
-                        {e.category} ·{' '}
+                        {formatExpenseCategory(e)} ·{' '}
                         {foundersByEmail[String(e.requested_by || '').toLowerCase()] || e.requested_by}
                       </p>
                     </div>

@@ -2,16 +2,22 @@
 
 import { useState, useEffect } from 'react'
 import * as navigation from 'next/navigation'
-import { ArrowLeft, Save, IndianRupee, User, Briefcase, FileText, Loader2 } from 'lucide-react'
+import { ArrowLeft, Save, IndianRupee, User, Briefcase, FileText, Loader2, Percent, Plus } from 'lucide-react'
 import { createClient } from '@/lib/supabase'
 import { refreshFinanceData, createProject } from '@/lib/actions'
+import { getAgenciesForForm, createAgencyAction } from '@/lib/agency-actions'
+import { REVENUE_TYPES, REVENUE_TYPE_LABELS, type Agency } from '@/types/finance'
 
 export default function NewProjectPage() {
   const router = typeof navigation.useRouter === 'function' ? navigation.useRouter() : null
   const supabase = createClient()
-  
+
   const [loading, setLoading] = useState(false)
   const [founders, setFounders] = useState<{email: string, name: string}[]>([])
+  const [agencies, setAgencies] = useState<Agency[]>([])
+  const [showNewAgency, setShowNewAgency] = useState(false)
+  const [newAgencyName, setNewAgencyName] = useState('')
+  const [agencyBusy, setAgencyBusy] = useState(false)
   const [formData, setFormData] = useState({
     project_name: '',
     client_name: '',
@@ -19,9 +25,31 @@ export default function NewProjectPage() {
     agreed_value: '',
     project_lead: '',
     payment_structure: 'custom',
+    revenue_type: 'direct_client',
+    share_percentage: '100',
+    agency_id: '',
     notes: ''
   })
   const [error, setError] = useState('')
+
+  const handleAddAgency = async () => {
+    const name = newAgencyName.trim()
+    if (!name) return
+    setAgencyBusy(true)
+    try {
+      const res = await createAgencyAction({ name })
+      if (res.ok) {
+        setAgencies((prev) => [...prev.filter((a) => a.id !== res.agency.id), res.agency].sort((a, b) => a.name.localeCompare(b.name)))
+        setFormData((prev) => ({ ...prev, agency_id: res.agency.id }))
+        setNewAgencyName('')
+        setShowNewAgency(false)
+      } else {
+        setError(res.error)
+      }
+    } finally {
+      setAgencyBusy(false)
+    }
+  }
 
   useEffect(() => {
     async function fetchData() {
@@ -51,6 +79,10 @@ export default function NewProjectPage() {
           return prev
         })
       }
+
+      // 4. Fetch agencies (for the Agency Digital Marketing revenue type)
+      const agencyRes = await getAgenciesForForm()
+      if (agencyRes.ok) setAgencies(agencyRes.agencies)
     }
     fetchData()
   }, [])
@@ -155,6 +187,99 @@ export default function NewProjectPage() {
               </div>
             </div>
           </div>
+
+          <div className="grid grid-cols-2 gap-8">
+            <div className="space-y-3">
+              <label className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400 ml-1">Revenue Type</label>
+              <div className="relative">
+                <Briefcase className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+                <select
+                  required
+                  value={formData.revenue_type}
+                  onChange={(e) => setFormData({ ...formData, revenue_type: e.target.value })}
+                  className="w-full bg-slate-50 border border-slate-200 rounded-xl py-4 pl-12 pr-4 text-slate-900 outline-none focus:border-slate-900 appearance-none transition-all font-bold text-sm"
+                >
+                  {REVENUE_TYPES.map((rt) => (
+                    <option key={rt} value={rt}>{REVENUE_TYPE_LABELS[rt]}</option>
+                  ))}
+                </select>
+              </div>
+            </div>
+            <div className="space-y-3">
+              <label className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400 ml-1">Default Share (%)</label>
+              <div className="relative">
+                <Percent className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+                <input
+                  type="number"
+                  required
+                  min={0}
+                  max={100}
+                  step="0.01"
+                  value={formData.share_percentage}
+                  onChange={(e) => setFormData({ ...formData, share_percentage: e.target.value })}
+                  placeholder="100"
+                  className="w-full bg-slate-50 border border-slate-200 rounded-xl py-4 pl-12 pr-4 text-slate-900 outline-none focus:border-slate-900 transition-all font-bold text-sm"
+                />
+              </div>
+              <p className="text-[9px] font-bold text-slate-400 ml-1">
+                Your cut of this client&apos;s revenue — pre-fills each payment, editable per deal.
+              </p>
+            </div>
+          </div>
+
+          {formData.revenue_type === 'agency_digital_marketing' ? (
+            <div className="space-y-3">
+              <label className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400 ml-1">Agency</label>
+              <div className="relative">
+                <Briefcase className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+                <select
+                  value={formData.agency_id}
+                  onChange={(e) => setFormData({ ...formData, agency_id: e.target.value })}
+                  className="w-full bg-slate-50 border border-slate-200 rounded-xl py-4 pl-12 pr-4 text-slate-900 outline-none focus:border-slate-900 appearance-none transition-all font-bold text-sm"
+                >
+                  <option value="">Select agency</option>
+                  {agencies.map((a) => (
+                    <option key={a.id} value={a.id}>{a.name}</option>
+                  ))}
+                </select>
+              </div>
+              {showNewAgency ? (
+                <div className="flex gap-3">
+                  <input
+                    type="text"
+                    value={newAgencyName}
+                    onChange={(e) => setNewAgencyName(e.target.value)}
+                    placeholder="New agency name"
+                    className="flex-1 bg-slate-50 border border-slate-200 rounded-xl py-3 px-4 text-slate-900 outline-none focus:border-slate-900 font-bold text-sm"
+                  />
+                  <button
+                    type="button"
+                    disabled={agencyBusy || !newAgencyName.trim()}
+                    onClick={handleAddAgency}
+                    className="px-5 py-3 rounded-xl bg-slate-900 text-white text-[10px] font-black uppercase tracking-widest hover:bg-slate-800 disabled:opacity-40"
+                  >
+                    {agencyBusy ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Add'}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => { setShowNewAgency(false); setNewAgencyName('') }}
+                    className="px-5 py-3 rounded-xl border border-slate-200 text-slate-500 text-[10px] font-black uppercase tracking-widest hover:bg-slate-50"
+                  >
+                    Cancel
+                  </button>
+                </div>
+              ) : (
+                <button
+                  type="button"
+                  onClick={() => setShowNewAgency(true)}
+                  className="inline-flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-slate-500 hover:text-slate-900"
+                >
+                  <Plus className="w-3.5 h-3.5" />
+                  New agency
+                </button>
+              )}
+            </div>
+          ) : null}
 
           <div className="grid grid-cols-2 gap-8">
             <div className="space-y-3">

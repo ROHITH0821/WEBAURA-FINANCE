@@ -4,6 +4,7 @@ import { revalidateTag } from 'next/cache'
 import { redirect } from 'next/navigation'
 import { createStaticClient } from '@/lib/supabaseServer'
 import { requireSuperAdmin } from '@/lib/admin-gates'
+import { REVENUE_TYPES, type RevenueType } from '@/types/finance'
 
 type ActionResult = { ok: true } | { ok: false; error: string }
 const revalidate = (tag: string) => (revalidateTag as any)(tag)
@@ -24,6 +25,12 @@ export async function updateProjectAction(projectId: string, patch: any): Promis
     advance_amount: patch.advance_amount === '' || patch.advance_amount == null ? null : Number(patch.advance_amount),
     status: patch.status,
     project_lead: patch.project_lead,
+    revenue_type: REVENUE_TYPES.includes(patch.revenue_type as RevenueType) ? patch.revenue_type : undefined,
+    share_percentage:
+      patch.share_percentage != null && String(patch.share_percentage) !== ''
+        ? Math.max(0, Math.min(100, Number(patch.share_percentage)))
+        : undefined,
+    agency_id: patch.revenue_type === 'agency_digital_marketing' ? patch.agency_id || null : null,
     notes: patch.notes ?? null,
   }
 

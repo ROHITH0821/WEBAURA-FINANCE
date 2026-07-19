@@ -4,7 +4,7 @@ import { useEffect, useMemo, useState, useTransition } from 'react'
 import Link from 'next/link'
 import * as navigation from 'next/navigation'
 import { CheckCircle2, Loader2, XCircle, ArrowLeftRight } from 'lucide-react'
-import { formatCurrency } from '@/lib/utils'
+import { formatCurrency, formatExpenseCategory } from '@/lib/utils'
 import {
   approveExpenseRequestAction,
   rejectExpenseRequestAction,
@@ -346,7 +346,7 @@ function ExpenseCard({
           <p className="text-[9px] md:text-[10px] font-black uppercase tracking-[0.3em] text-slate-400 mb-1 md:mb-2">Expense Request</p>
           <p className="text-base md:text-lg font-black text-slate-900 uppercase tracking-tight truncate">{row.spent_on}</p>
           <p className="mt-1 md:mt-2 text-[10px] md:text-[11px] font-black uppercase tracking-widest text-slate-500">
-            {row.category} •{' '}
+            {formatExpenseCategory(row)} •{' '}
             <span className="text-slate-800">{row.requester_display_name || row.requested_by}</span>
           </p>
           {row.project_label ? (

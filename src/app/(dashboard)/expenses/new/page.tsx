@@ -3,8 +3,10 @@
 import { useState, useEffect } from 'react'
 import * as navigation from 'next/navigation'
 import Link from 'next/link'
-import { ArrowLeft, Save, IndianRupee, Tag, FileText, Loader2, Briefcase, CheckCircle2 } from 'lucide-react'
+import { ArrowLeft, Save, IndianRupee, Tag, FileText, Loader2, Briefcase, Building2, CheckCircle2 } from 'lucide-react'
 import { submitExpenseRequest } from '@/lib/expense-actions'
+import { getAgenciesForForm } from '@/lib/agency-actions'
+import { EXPENSE_CATEGORIES, EXPENSE_CATEGORY_LABELS, type Agency } from '@/types/finance'
 
 type ProjectOption = { id: string; label: string }
 
@@ -12,8 +14,10 @@ const EMPTY_FORM = {
   amount: '',
   spent_on: '',
   category: 'miscellaneous',
+  custom_category_label: '',
   transaction_ref: '',
   project_id: '',
+  agency_id: '',
 }
 
 export default function NewExpensePage() {
@@ -23,6 +27,7 @@ export default function NewExpensePage() {
   const [bootstrapping, setBootstrapping] = useState(true)
   const [projects, setProjects] = useState<ProjectOption[]>([])
   const [projectsError, setProjectsError] = useState('')
+  const [agencies, setAgencies] = useState<Agency[]>([])
   const [role, setRole] = useState<'super_admin' | 'admin' | 'founder' | null>(null)
   const [formData, setFormData] = useState(EMPTY_FORM)
   const [error, setError] = useState('')
@@ -47,6 +52,9 @@ export default function NewExpensePage() {
         if (json.role) setRole(json.role)
         setProjects(json.projects || [])
         if (json.projectsError) setProjectsError(json.projectsError)
+
+        const agencyRes = await getAgenciesForForm()
+        if (!cancelled && agencyRes.ok) setAgencies(agencyRes.agencies)
       } catch (e: unknown) {
         if (!cancelled) {
           setProjectsError(e instanceof Error ? e.message : 'Network error loading projects')
@@ -76,6 +84,8 @@ export default function NewExpensePage() {
       const res = await submitExpenseRequest({
         ...formData,
         project_id: formData.project_id.trim() || null,
+        agency_id: formData.agency_id.trim() || null,
+        custom_category_label: formData.category === 'other' ? formData.custom_category_label.trim() : null,
       })
       if (res?.error) throw new Error(res.error)
       if (res?.ok) {
@@ -197,18 +207,34 @@ export default function NewExpensePage() {
                   onChange={(e) => setFormData({ ...formData, category: e.target.value })}
                   className="box-border min-w-0 w-full max-w-full cursor-pointer appearance-none rounded-xl border border-slate-200 bg-slate-50 py-4 pl-12 pr-10 text-sm font-bold text-slate-900 outline-none transition-colors focus:border-slate-900 sm:pr-12"
                 >
-                  <option value="infrastructure">infrastructure</option>
-                  <option value="tools">tools</option>
-                  <option value="marketing">marketing</option>
-                  <option value="travel">travel</option>
-                  <option value="client_work">client_work</option>
-                  <option value="team">team</option>
-                  <option value="subscriptions">subscriptions</option>
-                  <option value="miscellaneous">miscellaneous</option>
+                  {EXPENSE_CATEGORIES.map((cat) => (
+                    <option key={cat} value={cat}>
+                      {EXPENSE_CATEGORY_LABELS[cat]}
+                    </option>
+                  ))}
                 </select>
               </div>
             </div>
           </div>
+
+          {formData.category === 'other' ? (
+            <div className="space-y-3">
+              <label className="ml-1 text-[10px] font-black uppercase tracking-[0.2em] text-slate-400">
+                Describe the category
+              </label>
+              <div className="relative">
+                <Tag className="absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+                <input
+                  type="text"
+                  required
+                  value={formData.custom_category_label}
+                  onChange={(e) => setFormData({ ...formData, custom_category_label: e.target.value })}
+                  placeholder="e.g. Client gift, Legal fees, Coworking day pass"
+                  className="box-border min-w-0 w-full max-w-full rounded-xl border border-slate-200 bg-slate-50 py-4 pl-12 pr-3 text-sm font-bold text-slate-900 outline-none transition-colors focus:border-slate-900 sm:pr-4"
+                />
+              </div>
+            </div>
+          ) : null}
 
           <div className="space-y-3">
             <label className="ml-1 text-[10px] font-black uppercase tracking-[0.2em] text-slate-400">
@@ -239,6 +265,30 @@ export default function NewExpensePage() {
                 Link only when this spend should reduce that project&apos;s net.
               </p>
             )}
+          </div>
+
+          <div className="space-y-3">
+            <label className="ml-1 text-[10px] font-black uppercase tracking-[0.2em] text-slate-400">
+              Agency <span className="font-bold normal-case tracking-normal text-slate-400">(optional)</span>
+            </label>
+            <div className="relative">
+              <Building2 className="absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+              <select
+                value={formData.agency_id}
+                onChange={(e) => setFormData({ ...formData, agency_id: e.target.value })}
+                className="box-border min-w-0 w-full max-w-full cursor-pointer appearance-none rounded-xl border border-slate-200 bg-slate-50 py-4 pl-12 pr-10 text-sm font-bold text-slate-900 outline-none transition-colors focus:border-slate-900 sm:pr-12"
+              >
+                <option value="">Not tied to an agency</option>
+                {agencies.map((a) => (
+                  <option key={a.id} value={a.id}>
+                    {a.name}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">
+              Tag when this spend (salaries, infra, etc.) counts against a specific agency&apos;s share.
+            </p>
           </div>
 
           <div className="space-y-3">

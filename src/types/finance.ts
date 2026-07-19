@@ -1,20 +1,65 @@
 export type ProjectType = 'basic' | 'business' | 'ecommerce' | 'saas' | 'custom'
 export type PaymentMethod = 'upi' | 'bank_transfer' | 'cash' | 'cheque'
 export type PaymentStage = 'advance' | 'milestone_1' | 'milestone_2' | 'milestone_3' | 'final' | 'full'
-export type ExpenseCategory =
-  | 'infrastructure'
-  | 'tools'
-  | 'marketing'
-  | 'travel'
-  | 'client_work'
-  | 'team'
-  | 'subscriptions'
-  | 'miscellaneous'
+
+/** Single source of truth for expense categories — form, server validation, and DB CHECK must all match. */
+export const EXPENSE_CATEGORIES = [
+  'infrastructure',
+  'tools',
+  'marketing',
+  'travel',
+  'client_work',
+  'team',
+  'subscriptions',
+  'salaries',
+  'agency_payout',
+  'office',
+  'miscellaneous',
+  'other',
+] as const
+
+export type ExpenseCategory = (typeof EXPENSE_CATEGORIES)[number]
+
+export const EXPENSE_CATEGORY_LABELS: Record<ExpenseCategory, string> = {
+  infrastructure: 'Infrastructure',
+  tools: 'Tools',
+  marketing: 'Marketing',
+  travel: 'Travel',
+  client_work: 'Client Work',
+  team: 'Team',
+  subscriptions: 'Subscriptions',
+  salaries: 'Salaries',
+  agency_payout: 'Agency Payout',
+  office: 'Office',
+  miscellaneous: 'Miscellaneous',
+  other: 'Other',
+}
+
+/** How each project/recurring client's revenue is sourced — drives share-of-revenue reporting. */
+export const REVENUE_TYPES = ['agency_digital_marketing', 'website_maintenance', 'direct_client'] as const
+
+export type RevenueType = (typeof REVENUE_TYPES)[number]
+
+export const REVENUE_TYPE_LABELS: Record<RevenueType, string> = {
+  agency_digital_marketing: 'Agency Digital Marketing',
+  website_maintenance: 'Website Maintenance',
+  direct_client: 'Direct Client',
+}
 
 export interface Founder {
   name: string
   email: string
   role: 'super_admin' | 'founder'
+}
+
+/** A marketing agency partner — one agency can have many projects/recurring clients feeding into it. */
+export interface Agency {
+  id: string
+  name: string
+  default_share_percentage: number
+  is_active: boolean
+  notes?: string | null
+  created_at: string
 }
 
 export interface FinanceProject {
@@ -30,6 +75,9 @@ export interface FinanceProject {
   total_received: number
   total_expenses: number
   net_profit: number
+  revenue_type: RevenueType
+  share_percentage: number
+  agency_id?: string | null
 }
 
 export interface PaymentEntry {
@@ -46,6 +94,9 @@ export interface PaymentEntry {
   verified: boolean
   verified_by?: string | null
   created_at: string
+  gross_amount?: number | null
+  share_percentage?: number | null
+  deal_expenses?: number | null
 }
 
 export interface Expense {
@@ -54,7 +105,9 @@ export interface Expense {
   amount: number
   spent_on: string
   category: ExpenseCategory
+  custom_category_label?: string | null
   project_id?: string | null
+  agency_id?: string | null
   client_name_manual?: string | null
   transaction_ref: string
   receipt_url?: string | null

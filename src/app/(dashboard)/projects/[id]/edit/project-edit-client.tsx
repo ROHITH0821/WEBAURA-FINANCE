@@ -2,14 +2,21 @@
 
 import { useMemo, useState, useTransition } from 'react'
 import * as navigation from 'next/navigation'
-import { ArrowLeft, Save, Trash2, Loader2 } from 'lucide-react'
+import { ArrowLeft, Save, Trash2, Loader2, Plus } from 'lucide-react'
 import { updateProjectAction, deleteProjectAction } from '@/lib/project-actions'
+import { createAgencyAction } from '@/lib/agency-actions'
+import { REVENUE_TYPES, REVENUE_TYPE_LABELS, type Agency } from '@/types/finance'
 
-export default function ProjectEditClient(props: { project: any; founders: any[] }) {
+export default function ProjectEditClient(props: { project: any; founders: any[]; agencies: Agency[] }) {
   const router = typeof navigation.useRouter === 'function' ? navigation.useRouter() : null
   const [pending, startTransition] = useTransition()
   const [dangerOpen, setDangerOpen] = useState(false)
   const [confirm, setConfirm] = useState('')
+  const [agencies, setAgencies] = useState<Agency[]>(props.agencies || [])
+  const [showNewAgency, setShowNewAgency] = useState(false)
+  const [newAgencyName, setNewAgencyName] = useState('')
+  const [agencyBusy, setAgencyBusy] = useState(false)
+  const [agencyError, setAgencyError] = useState('')
 
   const founderOptions = useMemo(() => {
     return (props.founders || [])
@@ -28,8 +35,31 @@ export default function ProjectEditClient(props: { project: any; founders: any[]
     advance_amount: props.project.advance_amount == null ? '' : String(props.project.advance_amount),
     status: props.project.status || 'active',
     project_lead: props.project.project_lead || '',
+    revenue_type: props.project.revenue_type || 'direct_client',
+    share_percentage: String(props.project.share_percentage ?? 100),
+    agency_id: props.project.agency_id || '',
     notes: props.project.notes || '',
   })
+
+  const handleAddAgency = async () => {
+    const name = newAgencyName.trim()
+    if (!name) return
+    setAgencyBusy(true)
+    setAgencyError('')
+    try {
+      const res = await createAgencyAction({ name })
+      if (res.ok) {
+        setAgencies((prev) => [...prev.filter((a) => a.id !== res.agency.id), res.agency].sort((a, b) => a.name.localeCompare(b.name)))
+        setForm((prev) => ({ ...prev, agency_id: res.agency.id }))
+        setNewAgencyName('')
+        setShowNewAgency(false)
+      } else {
+        setAgencyError(res.error)
+      }
+    } finally {
+      setAgencyBusy(false)
+    }
+  }
 
   return (
     <div className="space-y-10 animate-in slide-in-from-bottom-4 duration-700">
@@ -170,6 +200,81 @@ export default function ProjectEditClient(props: { project: any; founders: any[]
               className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm font-bold text-slate-900 outline-none focus:border-slate-400"
             />
           </Field>
+
+          <Field label="Revenue Type">
+            <select
+              value={form.revenue_type}
+              onChange={(e) => setForm({ ...form, revenue_type: e.target.value })}
+              className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm font-bold text-slate-900 outline-none focus:border-slate-400 appearance-none"
+            >
+              {REVENUE_TYPES.map((rt) => (
+                <option key={rt} value={rt}>{REVENUE_TYPE_LABELS[rt]}</option>
+              ))}
+            </select>
+          </Field>
+
+          <Field label="Default Share (%)">
+            <input
+              type="number"
+              min={0}
+              max={100}
+              step="0.01"
+              value={form.share_percentage}
+              onChange={(e) => setForm({ ...form, share_percentage: e.target.value })}
+              className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm font-bold text-slate-900 outline-none focus:border-slate-400"
+            />
+          </Field>
+
+          {form.revenue_type === 'agency_digital_marketing' ? (
+            <Field label="Agency">
+              <select
+                value={form.agency_id}
+                onChange={(e) => setForm({ ...form, agency_id: e.target.value })}
+                className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm font-bold text-slate-900 outline-none focus:border-slate-400 appearance-none"
+              >
+                <option value="">Select agency</option>
+                {agencies.map((a) => (
+                  <option key={a.id} value={a.id}>{a.name}</option>
+                ))}
+              </select>
+              {showNewAgency ? (
+                <div className="mt-2 flex gap-2">
+                  <input
+                    type="text"
+                    value={newAgencyName}
+                    onChange={(e) => setNewAgencyName(e.target.value)}
+                    placeholder="New agency name"
+                    className="flex-1 rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm font-bold text-slate-900 outline-none focus:border-slate-400"
+                  />
+                  <button
+                    type="button"
+                    disabled={agencyBusy || !newAgencyName.trim()}
+                    onClick={handleAddAgency}
+                    className="px-4 py-2 rounded-lg bg-slate-900 text-white text-[9px] font-black uppercase tracking-widest hover:bg-slate-800 disabled:opacity-40"
+                  >
+                    {agencyBusy ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : 'Add'}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => { setShowNewAgency(false); setNewAgencyName('') }}
+                    className="px-4 py-2 rounded-lg border border-slate-200 text-slate-500 text-[9px] font-black uppercase tracking-widest hover:bg-slate-50"
+                  >
+                    Cancel
+                  </button>
+                </div>
+              ) : (
+                <button
+                  type="button"
+                  onClick={() => setShowNewAgency(true)}
+                  className="mt-2 inline-flex items-center gap-1.5 text-[9px] font-black uppercase tracking-widest text-slate-500 hover:text-slate-900"
+                >
+                  <Plus className="w-3 h-3" />
+                  New agency
+                </button>
+              )}
+              {agencyError ? <p className="mt-1 text-[10px] font-bold text-rose-600">{agencyError}</p> : null}
+            </Field>
+          ) : null}
         </div>
 
         <div className="mt-8">

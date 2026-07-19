@@ -34,7 +34,8 @@ export default async function DashboardPage() {
   const [statsData, auditLogs] = await Promise.all([getDashboardStats(), getRecentAuditLogs()])
 
   const stats = [
-    { name: 'Total Revenue', value: statsData.totalRevenue, icon: TrendingUp, color: 'text-emerald-600', bg: 'bg-emerald-50' },
+    // Dashboard integration: revenueThisMonth and totalRevenue include logged recurring collections.
+    { name: 'Total Revenue This Month', value: statsData.revenueThisMonth, icon: TrendingUp, color: 'text-emerald-600', bg: 'bg-emerald-50' },
     { name: 'Total Expenses', value: statsData.totalExpenses, icon: TrendingDown, color: 'text-rose-600', bg: 'bg-rose-50' },
     { name: 'Net Profit', value: statsData.netProfit, icon: CreditCard, color: 'text-slate-900', bg: 'bg-[#f7f7dc]' },
     { name: 'Order Book', value: statsData.orderBookValue, icon: Briefcase, color: 'text-indigo-600', bg: 'bg-indigo-50' },

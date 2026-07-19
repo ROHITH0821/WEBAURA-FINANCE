@@ -7,6 +7,7 @@ import { redirect } from 'next/navigation'
 import { requireActiveAdmin, requireSuperAdmin, type GateOk } from '@/lib/admin-gates'
 import { formatCurrency } from '@/lib/utils'
 import { escapeHtml, sendFinanceTransactionalEmail } from '@/lib/send-finance-email'
+import { EXPENSE_CATEGORIES, REVENUE_TYPES, type ExpenseCategory, type RevenueType } from '@/types/finance'
 
 const revalidate = (tag: string) => (revalidateTag as any)(tag)
 
@@ -54,7 +55,15 @@ export async function createProject(formData: any) {
   const gate = await requireActiveAdmin()
   if (!gate.ok) return { error: gate.error }
   const supabase = createStaticClient()
-  
+
+  const revenueType = REVENUE_TYPES.includes(formData.revenue_type as RevenueType)
+    ? (formData.revenue_type as RevenueType)
+    : 'direct_client'
+  const sharePercentage =
+    formData.share_percentage != null && String(formData.share_percentage) !== ''
+      ? Math.max(0, Math.min(100, Number(formData.share_percentage)))
+      : 100
+
   const { data, error } = await supabase
     .from('projects')
     .insert({
@@ -69,6 +78,9 @@ export async function createProject(formData: any) {
       advance_amount: formData.advance_amount != null && String(formData.advance_amount) !== '' ? Number(formData.advance_amount) : null,
       status: formData.status || 'active',
       project_lead: formData.project_lead,
+      revenue_type: revenueType,
+      share_percentage: sharePercentage,
+      agency_id: revenueType === 'agency_digital_marketing' ? formData.agency_id || null : null,
       notes: formData.notes || null,
     })
     .select()
@@ -167,10 +179,20 @@ export async function createExpense(formData: any) {
     return { error: 'Proof / transaction reference is required.' }
   }
 
+  const category = String(formData.category || '').trim()
+  if (!EXPENSE_CATEGORIES.includes(category as ExpenseCategory)) {
+    return { error: 'Invalid expense category.' }
+  }
+  const customCategoryLabel = String(formData.custom_category_label || '').trim()
+  if (category === 'other' && !customCategoryLabel) {
+    return { error: 'Please describe the custom category.' }
+  }
+
   const isSuper = gate.role === 'super_admin'
   // Super admin: record straight to the paid ledger (same table as expenses UI). Admins/founders stay pending for super approval.
   // Always attribute to the signed-in user (client form cannot spoof).
   const projectIdRaw = String(formData.project_id || '').trim()
+  const agencyIdRaw = String(formData.agency_id || '').trim()
 
   const { data, error } = await supabase
     .from('expense_requests')
@@ -178,8 +200,10 @@ export async function createExpense(formData: any) {
       requested_by: gate.email,
       amount,
       spent_on: spentOn,
-      category: formData.category,
+      category,
+      custom_category_label: category === 'other' ? customCategoryLabel : null,
       project_id: projectIdRaw || null,
+      agency_id: agencyIdRaw || null,
       client_name_manual: formData.client_name_manual || null,
       transaction_ref: proofRef,
       receipt_url: formData.receipt_url || null,

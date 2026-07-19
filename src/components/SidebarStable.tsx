@@ -9,6 +9,7 @@ import {
   Receipt,
   Inbox,
   PieChart,
+  Repeat,
   Settings,
   ShieldCheck,
   User,
@@ -22,6 +23,7 @@ import WebAuraFinanceBrand from '@/components/WebAuraFinanceBrand'
 const navItems = [
   { name: 'Summary', href: '/', icon: LayoutDashboard },
   { name: 'Projects', href: '/projects', icon: Briefcase },
+  { name: 'Recurring Revenue', href: '/recurring', icon: Repeat },
   { name: 'Expenses', href: '/expenses', icon: Receipt },
   { name: 'Requests', href: '/requests', icon: Inbox },
   { name: 'Revenue', href: '/revenue', icon: PieChart },
